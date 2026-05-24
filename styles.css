@@ -343,6 +343,102 @@ canvas {
     box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
 }
 
+/* Ship Select */
+.ship-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin: 15px 0;
+    max-width: 500px;
+}
+
+.ship-card {
+    width: 110px;
+    padding: 12px 8px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #333;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    opacity: 0.6;
+}
+
+.ship-card.unlocked {
+    opacity: 1;
+    border-color: #0f0;
+}
+
+.ship-card.unlocked:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+}
+
+.ship-card.selected {
+    border-color: #ff0;
+    box-shadow: 0 0 20px rgba(255, 255, 0, 0.4);
+    transform: translateY(-3px);
+}
+
+.ship-card .icon {
+    font-size: 28px;
+    margin-bottom: 4px;
+}
+
+.ship-card .name {
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    margin-bottom: 2px;
+}
+
+.ship-card .lock {
+    font-size: 11px;
+    color: #888;
+}
+
+.ship-stats {
+    font-size: 13px;
+    color: #0f0;
+    margin-bottom: 12px;
+    min-height: 40px;
+    text-align: center;
+}
+
+.unlock-notice {
+    background: rgba(255, 215, 0, 0.12);
+    border: 1px solid #ffd700;
+    color: #ffd700;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin: 10px 0;
+    animation: unlockPop 0.5s ease;
+}
+
+@keyframes unlockPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    60% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+    .ship-grid {
+        gap: 8px;
+    }
+    .ship-card {
+        width: 80px;
+        padding: 8px 4px;
+    }
+    .ship-card .icon {
+        font-size: 22px;
+    }
+    .ship-card .name {
+        font-size: 11px;
+    }
+}
+
 #shopScreen {
     border-color: #f0f;
     box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);

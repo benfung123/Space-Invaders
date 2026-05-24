@@ -1,6 +1,78 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// ===== SHIP CLASSES =====
+const SHIP_CLASSES = {
+    INTERCEPTOR: {
+        key: 'INTERCEPTOR', name: 'Interceptor', icon: '✈️',
+        desc: 'Balanced fighter. Reliable in all situations.',
+        lives: 3, speedMult: 1.0, fireRateMult: 1.0,
+        startPowerUp: null, bunkerBonus: 0,
+        color: '#0f0', glow: '#0f0',
+        unlockScore: 0
+    },
+    VANGUARD: {
+        key: 'VANGUARD', name: 'Vanguard', icon: '🛡️',
+        desc: 'Heavy armor. Starts with Shield, slower movement.',
+        lives: 4, speedMult: 0.9, fireRateMult: 1.0,
+        startPowerUp: 'SHIELD', bunkerBonus: 0,
+        color: '#08f', glow: '#08f',
+        unlockScore: 2000
+    },
+    SPECTRE: {
+        key: 'SPECTRE', name: 'Spectre', icon: '👻',
+        desc: 'Glass cannon. Starts with Multi-Shot, high speed.',
+        lives: 2, speedMult: 1.15, fireRateMult: 1.0,
+        startPowerUp: 'MULTI_SHOT', bunkerBonus: 0,
+        color: '#ff0', glow: '#ff0',
+        unlockScore: 6000
+    },
+    TITAN: {
+        key: 'TITAN', name: 'Titan', icon: '🏰',
+        desc: 'Fortress. Extra life, built-in bunker row, slow fire.',
+        lives: 5, speedMult: 0.85, fireRateMult: 0.8,
+        startPowerUp: null, bunkerBonus: 1,
+        color: '#f80', glow: '#f80',
+        unlockScore: 12000
+    }
+};
+
+let selectedShipKey = 'INTERCEPTOR';
+let shipUnlocks = JSON.parse(localStorage.getItem('si_shipUnlocks')) || ['INTERCEPTOR'];
+let shipBestScores = JSON.parse(localStorage.getItem('si_shipScores')) || {};
+
+function saveShipProgress() {
+    localStorage.setItem('si_shipUnlocks', JSON.stringify(shipUnlocks));
+    localStorage.setItem('si_shipScores', JSON.stringify(shipBestScores));
+}
+
+function getUnlockedShips() {
+    const best = Math.max(highScore, score);
+    let changed = false;
+    for (const key in SHIP_CLASSES) {
+        const ship = SHIP_CLASSES[key];
+        if (!shipUnlocks.includes(key) && best >= ship.unlockScore) {
+            shipUnlocks.push(key);
+            changed = true;
+        }
+    }
+    if (changed) saveShipProgress();
+    return shipUnlocks;
+}
+
+function checkNewUnlocks(lastBest) {
+    const newUnlocks = [];
+    for (const key in SHIP_CLASSES) {
+        const ship = SHIP_CLASSES[key];
+        if (!shipUnlocks.includes(key) && score >= ship.unlockScore && lastBest < ship.unlockScore) {
+            shipUnlocks.push(key);
+            newUnlocks.push(ship);
+        }
+    }
+    if (newUnlocks.length) saveShipProgress();
+    return newUnlocks;
+}
+
 // ===== AUDIO SYSTEM =====
 class SoundManager {
     constructor() {
@@ -1014,12 +1086,14 @@ const player = {
     initTime: 0,
 
     init() {
+        const ship = SHIP_CLASSES[selectedShipKey];
         this.x = canvas.width / 2 - this.width / 2;
         this.y = canvas.height - this.height - 28;
         this.shield = false;
         this.initTime = 0;
-        this.speed = 300 * (1 + upgrades.speedBonus * 0.2);
-        this.baseCooldown = getFireRateCooldown();
+        this.speed = 300 * ship.speedMult * (1 + upgrades.speedBonus * 0.2);
+        this.baseCooldown = getFireRateCooldown() / ship.fireRateMult;
+        this.color = ship.color;
     },
 
     getCooldown() {
@@ -1909,9 +1983,11 @@ function closeShop() {
 // ===== SCREENS & FLOW =====
 const startScreen = document.getElementById('startScreen');
 const gameOverScreen = document.getElementById('gameOverScreen');
+const shipSelectScreen = document.getElementById('shipSelectScreen');
 const levelUpScreen = document.getElementById('levelUpScreen');
 const finalScore = document.getElementById('finalScore');
 const finalHighScore = document.getElementById('finalHighScore');
+const unlockNotice = document.getElementById('unlockNotice');
 
 const muteBtn = document.getElementById('muteBtn');
 muteBtn.addEventListener('click', () => {
@@ -1920,26 +1996,46 @@ muteBtn.addEventListener('click', () => {
     muteBtn.classList.toggle('muted', muted);
 });
 
+function showShipSelect() {
+    getUnlockedShips();
+    renderShipSelect();
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    shipSelectScreen.classList.remove('hidden');
+}
+
 document.getElementById('startBtn').addEventListener('click', () => {
     audio.init();
+    showShipSelect();
+});
+document.getElementById('restartBtn').addEventListener('click', showShipSelect);
+document.getElementById('shipBackBtn').addEventListener('click', () => {
+    shipSelectScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+});
+document.getElementById('launchBtn').addEventListener('click', () => {
+    shipSelectScreen.classList.add('hidden');
     startGame();
 });
-document.getElementById('restartBtn').addEventListener('click', startGame);
 
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        if (gameState === 'menu' || gameState === 'gameover') {
+        if (gameState === 'menu') {
             audio.init();
-            startGame();
+            showShipSelect();
+        } else if (gameState === 'gameover') {
+            audio.init();
+            showShipSelect();
         }
     }
 });
 
 function startGame() {
+    const ship = SHIP_CLASSES[selectedShipKey];
     gameState = 'playing';
     score = 0;
     credits = 0;
-    lives = 3;
+    lives = ship.lives;
     level = 1;
     levelTransitioning = false;
     wavePerfect = true;
@@ -1962,15 +2058,19 @@ function startGame() {
     alienSpeed = 30;
     alienMoveTimer = 0;
     alienShootTimer = 0;
-    upgrades = { speedBonus: 0, bunkerBonus: 0, comboBonus: 0, fireRateBonus: 0 };
+    upgrades = { speedBonus: 0, bunkerBonus: ship.bunkerBonus, comboBonus: 0, fireRateBonus: 0 };
 
     player.init();
+    if (ship.startPowerUp) {
+        applyPowerUp(ship.startPowerUp);
+    }
     createAliens();
     createBunkers();
     updateUI();
     updatePowerUpUI();
 
     startScreen.classList.add('hidden');
+    shipSelectScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
     levelUpScreen.classList.add('hidden');
     pauseScreen.classList.add('hidden');
@@ -2041,12 +2141,64 @@ function nextLevel() {
     proceedToNextLevel();
 }
 
+function renderShipSelect() {
+    const grid = document.getElementById('shipGrid');
+    const stats = document.getElementById('shipStats');
+    grid.innerHTML = '';
+    getUnlockedShips();
+
+    for (const key in SHIP_CLASSES) {
+        const ship = SHIP_CLASSES[key];
+        const unlocked = shipUnlocks.includes(key);
+        const el = document.createElement('div');
+        el.className = 'ship-card' + (unlocked ? ' unlocked' : '') + (key === selectedShipKey ? ' selected' : '');
+        el.innerHTML = `
+            <div class="icon">${unlocked ? ship.icon : '🔒'}</div>
+            <div class="name">${ship.name}</div>
+            ${unlocked ? '' : `<div class="lock">${ship.unlockScore} pts</div>`}
+        `;
+        if (unlocked) {
+            el.addEventListener('click', () => {
+                selectedShipKey = key;
+                renderShipSelect();
+            });
+        }
+        grid.appendChild(el);
+    }
+
+    const sel = SHIP_CLASSES[selectedShipKey];
+    const best = shipBestScores[selectedShipKey] || 0;
+    stats.innerHTML = `
+        <strong style="color:${sel.color}">${sel.name}</strong> — ${sel.desc}<br>
+        ❤️ ${sel.lives} &nbsp;|&nbsp; ⚡ ${(sel.speedMult * 100).toFixed(0)}% spd &nbsp;|&nbsp; 🔫 ${(sel.fireRateMult * 100).toFixed(0)}% fire
+        ${sel.bunkerBonus ? '&nbsp;|&nbsp; 🛡️ +' + sel.bunkerBonus + ' bunker row' : ''}
+        ${sel.startPowerUp ? '&nbsp;|&nbsp; 🎁 Starts with ' + sel.startPowerUp.replace('_', ' ') : ''}
+        <br><span style="color:#888">Best: ${best}</span>
+    `;
+}
+
 function endGame() {
     gameState = 'gameover';
+    const prevBest = highScore;
     if (score > highScore) {
         highScore = score;
         localStorage.setItem('si_highScore', highScore);
     }
+    // Update per-ship best score
+    const prevShipBest = shipBestScores[selectedShipKey] || 0;
+    if (score > prevShipBest) {
+        shipBestScores[selectedShipKey] = score;
+        saveShipProgress();
+    }
+    // Check for new unlocks
+    const newUnlocks = checkNewUnlocks(prevBest);
+    unlockNotice.innerHTML = '';
+    unlockNotice.classList.add('hidden');
+    if (newUnlocks.length > 0) {
+        unlockNotice.innerHTML = newUnlocks.map(s => `🎉 New Ship Unlocked: <strong>${s.name}</strong>!`).join('<br>');
+        unlockNotice.classList.remove('hidden');
+    }
+
     finalScore.textContent = score;
     finalHighScore.textContent = highScore;
     pauseBtn.classList.remove('visible');

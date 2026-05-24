@@ -40,10 +40,18 @@
             <button id="startBtn">START GAME</button>
             <button id="lbBtnStart">🏆 LEADERBOARD</button>
         </div>
+        <div class="overlay hidden" id="shipSelectScreen">
+            <h1>SELECT SHIP</h1>
+            <div class="ship-grid" id="shipGrid"></div>
+            <div class="ship-stats" id="shipStats"></div>
+            <button id="launchBtn">LAUNCH</button>
+            <button id="shipBackBtn">BACK</button>
+        </div>
         <div class="overlay hidden" id="gameOverScreen">
             <h1>GAME OVER</h1>
             <p>Final Score: <span id="finalScore">0</span></p>
             <p class="high">High Score: <span id="finalHighScore">0</span></p>
+            <div id="unlockNotice" class="unlock-notice hidden"></div>
             <button id="restartBtn">PLAY AGAIN</button>
         </div>
         <div class="overlay hidden" id="levelUpScreen">
