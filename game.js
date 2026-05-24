@@ -652,7 +652,7 @@ const player = {
 
     init() {
         this.x = canvas.width / 2 - this.width / 2;
-        this.y = canvas.height - this.height - 20;
+        this.y = canvas.height - this.height - 28;
         this.shield = false;
         this.initTime = 0;
         this.speed = 300 * (1 + upgrades.speedBonus * 0.2);
@@ -1116,6 +1116,7 @@ function checkCollisions() {
                 createExplosion(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#f0f', 22);
                 audio.playBonus();
                 triggerShake(4);
+                spawnPowerUp(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
                 ufo = null;
                 ufoNextSpawn = 8 + Math.random() * 10;
                 updateUI();
