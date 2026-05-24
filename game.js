@@ -206,7 +206,7 @@ function createBunkers() {
 
     for (let b = 0; b < numBunkers; b++) {
         const bx = spacing * (b + 1) - bWidth / 2;
-        for (let r = 0; r < rows; r++) {
+        for (let r = 0; r < pattern.length; r++) {
             for (let c = 0; c < cols; c++) {
                 if (pattern[r][c]) {
                     bunkers.push({
