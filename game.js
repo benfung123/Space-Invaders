@@ -206,14 +206,14 @@ function createBunkers() {
         [1,1,0,0,1,1],
         [1,0,0,0,0,1]
     ];
-    // Extra rows grow DOWNWARD (away from player), keeping top fixed
+    // Extra rows grow UPWARD (away from player), keeping bottom fixed
     for (let e = 0; e < upgrades.bunkerBonus; e++) {
-        pattern.push([1,1,1,1,1,1]);
+        pattern.unshift([1,1,1,1,1,1]);
     }
     const bWidth = cols * (BUNKER_BRICK_W + BUNKER_GAP) - BUNKER_GAP;
     const numBunkers = 4;
     const spacing = canvas.width / (numBunkers + 1);
-    const y = canvas.height - 85;
+    const y = canvas.height - 85 - upgrades.bunkerBonus * (BUNKER_BRICK_H + BUNKER_GAP);
 
     for (let b = 0; b < numBunkers; b++) {
         const bx = spacing * (b + 1) - bWidth / 2;
