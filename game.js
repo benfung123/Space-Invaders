@@ -205,8 +205,8 @@ function updateCombo(dt) {
 
 // Responsive canvas sizing
 function resizeCanvas() {
-    const maxWidth = Math.min(600, window.innerWidth - 20);
-    const maxHeight = window.innerWidth <= 768 ? window.innerHeight * 0.48 : window.innerHeight * 0.65;
+    const maxWidth = Math.min(900, window.innerWidth - 20);
+    const maxHeight = window.innerWidth <= 768 ? window.innerHeight * 0.5 : window.innerHeight * 0.75;
     canvas.width = maxWidth;
     canvas.height = maxHeight;
 }
@@ -259,7 +259,7 @@ for (let i = 0; i < 100; i++) {
 
 function updateStars() {
     stars.forEach(star => {
-        star.y += star.speed;
+        star.y += star.speed * 2.5;
         if (star.y > canvas.height) {
             star.y = 0;
             star.x = Math.random() * canvas.width;
@@ -565,8 +565,8 @@ function createAliens() {
     levelConfig = getLevelConfig(level);
     const cols = levelConfig.cols;
     const rows = levelConfig.rows;
-    const alienWidth = 30;
-    const alienHeight = 20;
+    const alienWidth = 22;
+    const alienHeight = 16;
     const padding = 15;
     const startX = (canvas.width - (cols * (alienWidth + padding) - padding)) / 2;
     const startY = Math.min(45 + (level - 1) * 5, 85);
