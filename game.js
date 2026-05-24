@@ -2168,12 +2168,14 @@ function renderShipSelect() {
 
     const sel = SHIP_CLASSES[selectedShipKey];
     const best = shipBestScores[selectedShipKey] || 0;
+    const bonusText = [];
+    if (sel.bunkerBonus) bonusText.push('+🛡️row');
+    if (sel.startPowerUp) bonusText.push('🎁' + sel.startPowerUp.replace('_', ' '));
     stats.innerHTML = `
-        <strong style="color:${sel.color}">${sel.name}</strong> — ${sel.desc}<br>
-        ❤️ ${sel.lives} &nbsp;|&nbsp; ⚡ ${(sel.speedMult * 100).toFixed(0)}% spd &nbsp;|&nbsp; 🔫 ${(sel.fireRateMult * 100).toFixed(0)}% fire
-        ${sel.bunkerBonus ? '&nbsp;|&nbsp; 🛡️ +' + sel.bunkerBonus + ' bunker row' : ''}
-        ${sel.startPowerUp ? '&nbsp;|&nbsp; 🎁 Starts with ' + sel.startPowerUp.replace('_', ' ') : ''}
-        <br><span style="color:#888">Best: ${best}</span>
+        <strong style="color:${sel.color}">${sel.icon} ${sel.name}</strong>
+        &nbsp;|&nbsp; ❤️${sel.lives} ⚡${(sel.speedMult * 100).toFixed(0)}% 🔫${(sel.fireRateMult * 100).toFixed(0)}%
+        ${bonusText.length ? '&nbsp;|&nbsp; ' + bonusText.join(' ') : ''}
+        &nbsp;|&nbsp; <span style="color:#888">Best:${best}</span>
     `;
 }
 
