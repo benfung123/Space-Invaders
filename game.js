@@ -595,7 +595,7 @@ function drawBombs() {
 let aliens = [];
 let alienDirection = 1;
 let alienSpeed = 30;
-let alienDropDistance = 20;
+let alienDropDistance = 14;
 let alienMoveTimer = 0;
 let alienShootTimer = 0;
 let levelConfig = null;
@@ -678,7 +678,7 @@ function updateAliens(dt) {
     }
 
     alienMoveTimer += dt;
-    const moveInterval = Math.max(0.025, 0.75 - (aliveAliens.length / 50) - (level * 0.06));
+    const moveInterval = Math.max(0.04, 0.85 - (aliveAliens.length / 60) - (level * 0.03));
 
     if (alienMoveTimer >= moveInterval) {
         alienMoveTimer = 0;
