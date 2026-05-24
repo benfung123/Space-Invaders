@@ -542,7 +542,7 @@ function updateStars() {
 function drawStars() {
     stars.forEach(star => {
         ctx.globalAlpha = star.opacity;
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = themeColor('star');
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
@@ -552,23 +552,23 @@ function drawStars() {
 
 // ===== POWER-UP SYSTEM =====
 const POWERUP_TYPES = {
-    RAPID_FIRE: { color: '#f0f', glow: '#f0f', label: '⚡ RAPID', duration: 8 },
+    RAPID_FIRE: { color: '#f0f', glow: '#f0f', label: '⚡ RAPID', duration: 10 },
     SHIELD:     { color: '#08f', glow: '#08f', label: '🛡️ SHIELD', duration: -1 },
-    MULTI_SHOT: { color: '#ff0', glow: '#ff0', label: '🔱 MULTI', duration: 8 },
+    MULTI_SHOT: { color: '#ff0', glow: '#ff0', label: '🔱 MULTI', duration: 10 },
     WINGMAN: { color: '#0f0', glow: '#0f0', label: '✈️ WING', duration: 10 }
 };
 
 const WEAPON_TYPES = {
-    SPREAD:  { color: '#ff8c00', glow: '#ff8c00', label: '🔥 SPREAD',  duration: 8,  symbol: 'F' },
-    PIERCE:  { color: '#e0f7fa', glow: '#fff',    label: '⚡ PIERCE',  duration: 8,  symbol: 'P' },
-    HOMING:  { color: '#ff69b4', glow: '#ff69b4', label: '🎯 HOMING',  duration: 10, symbol: 'H' },
-    BOUNCE:  { color: '#7fff00', glow: '#7fff00', label: '↩️ BOUNCE',  duration: 8,  symbol: 'B' }
+    SPREAD:  { color: '#ff8c00', glow: '#ff8c00', label: '🔥 SPREAD', duration: 10, symbol: 'F' },
+    PIERCE:  { color: '#e0f7fa', glow: '#fff',    label: '⚡ PIERCE', duration: 10, symbol: 'P' },
+    HOMING:  { color: '#ff69b4', glow: '#ff69b4', label: '🎯 HOMING', duration: 10, symbol: 'H' },
+    NUKE:    { color: '#ff4500', glow: '#ff0',    label: '💥 NUKE',   duration: 10, symbol: 'N' }
 };
 
 const THEMES = {
     CLASSIC:   { name: 'Classic',   player: '#0f0', bullet: '#0ff', bomb: '#f00', bunker: '#0a0', bunkerGlow: '#0f0', minion: '#0f0', ui: '#0f0', star: '#fff', alienRows: ['#f00','#f80','#ff0','#0f0','#0ff'] },
     CYBERPUNK: { name: 'Cyberpunk', player: '#f0f', bullet: '#ff0', bomb: '#f0f', bunker: '#408', bunkerGlow: '#f0f', minion: '#f0f', ui: '#f0f', star: '#f0f', alienRows: ['#f0f','#f0f','#ff0','#0ff','#0ff'] },
-    MATRIX:    { name: 'Matrix',    player: '#0f0', bullet: '#0f0', bomb: '#0a0', bunker: '#050', bunkerGlow: '#0f0', minion: '#0f0', ui: '#0f0', star: '#0f0', alienRows: ['#0a0','#0a0','#0f0','#0f0','#0f0'] },
+    MATRIX:    { name: 'Matrix',    player: '#0f0', bullet: '#0f0', bomb: '#0a0', bunker: '#050', bunkerGlow: '#0f0', minion: '#0f0', ui: '#0a0', star: '#0f0', alienRows: ['#0a0','#0a0','#0f0','#0f0','#0f0'] },
     SUNSET:    { name: 'Sunset',    player: '#f80', bullet: '#ff0', bomb: '#f00', bunker: '#804', bunkerGlow: '#f80', minion: '#f80', ui: '#f80', star: '#ff0', alienRows: ['#f00','#f80','#ff0','#f80','#80f'] },
     ICE:       { name: 'Ice',       player: '#0ff', bullet: '#fff', bomb: '#08f', bunker: '#048', bunkerGlow: '#0ff', minion: '#0ff', ui: '#0ff', star: '#8ff', alienRows: ['#048','#08f','#0ff','#8ff','#fff'] }
 };
@@ -990,12 +990,13 @@ function updateBoss_DESTROYER(dt) {
                 delete activePowerUps.SHIELD;
                 player.shield = false;
                 updatePowerUpUI();
-            } else {
+            } else if (!playerInvincible()) {
                 lives--;
                 createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#f00', 25);
                 audio.playExplosion();
                 triggerShake(10);
                 if (lives <= 0) endGame();
+                else respawnPlayer();
             }
             updateUI();
         }
@@ -1164,7 +1165,7 @@ function updateBoss(dt) {
     else if (boss.type === 'CARRIER') updateBoss_CARRIER(dt);
     else updateBoss_ARTILLERY(dt);
 
-    if (boss && boss.y + boss.height >= player.y) {
+    if (boss && !playerInvincible() && boss.y + boss.height >= player.y) {
         lives = 0;
         wavePerfect = false;
         updateUI();
@@ -1257,8 +1258,8 @@ const player = {
             bullets.push({ x: cx, y: cy, width: 3, height: 14, speed: 650, color: WEAPON_TYPES.PIERCE.color, dx: 0, trail: [], type: 'PIERCE' });
         } else if (activeWeapon === 'HOMING') {
             bullets.push({ x: cx, y: cy, width: 5, height: 10, speed: 420, color: WEAPON_TYPES.HOMING.color, dx: 0, trail: [], type: 'HOMING' });
-        } else if (activeWeapon === 'BOUNCE') {
-            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: WEAPON_TYPES.BOUNCE.color, dx: 0, trail: [], type: 'BOUNCE' });
+        } else if (activeWeapon === 'NUKE') {
+            bullets.push({ x: cx, y: cy, width: 5, height: 14, speed: 480, color: WEAPON_TYPES.NUKE.color, dx: 0, trail: [], type: 'NUKE' });
         } else if (activePowerUps.MULTI_SHOT) {
             bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 0, trail: [] });
             bullets.push({ x: cx - 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: -130, trail: [] });
@@ -1271,7 +1272,7 @@ const player = {
     },
 
     draw() {
-        // Spawn invulnerability flash
+        // Spawn / respawn invulnerability flash
         if (this.initTime < 2 && Math.floor(this.initTime * 10) % 2 === 0) return;
 
         if (this.shield) {
@@ -1299,6 +1300,17 @@ const player = {
         ctx.shadowBlur = 0;
     }
 };
+
+function playerInvincible() {
+    return player.initTime < 2;
+}
+
+function respawnPlayer() {
+    player.initTime = 0;
+    player.x = canvas.width / 2 - player.width / 2;
+    // Clear bombs near respawn area to prevent instant re-death
+    bombs = bombs.filter(b => b.y < player.y - 30 || Math.abs(b.x - (player.x + player.width / 2)) > 70);
+}
 
 // ===== BULLETS =====
 let bullets = [];
@@ -1333,12 +1345,6 @@ function updateBullets(dt) {
 
         b.y -= b.speed * dt;
         b.x += (b.dx || 0) * dt;
-
-        // Bounce off side walls
-        if (b.type === 'BOUNCE') {
-            if (b.x < 0) { b.x = 0; b.dx = Math.abs(b.dx || 0) + 30; }
-            if (b.x > canvas.width) { b.x = canvas.width; b.dx = -(Math.abs(b.dx || 0) + 30); }
-        }
 
         // Check bunker collision (player bullets destroy bunkers)
         // Pierce bullets pass through bunkers
@@ -1682,7 +1688,7 @@ function updateAliens(dt) {
     for (let alien of aliveAliens) {
         if (alien.diving) {
             // Hit player directly
-            if (rectsOverlap(alien, player)) {
+            if (rectsOverlap(alien, player) && !playerInvincible()) {
                 alien.alive = false;
                 createExplosion(alien.x + alien.width/2, alien.y + alien.height/2, '#f00', 20);
                 audio.playExplosion();
@@ -1701,6 +1707,8 @@ function updateAliens(dt) {
                     if (isFinal) {
                         setTimeout(() => endGame(), 700);
                         return;
+                    } else {
+                        respawnPlayer();
                     }
                 }
                 updateUI();
@@ -1710,7 +1718,7 @@ function updateAliens(dt) {
             if (alien.y > canvas.height + 20) {
                 alien.alive = false;
             }
-        } else if (alien.y + alien.height >= player.y) {
+        } else if (!playerInvincible() && alien.y + alien.height >= player.y) {
             lives = 0;
             wavePerfect = false;
             updateUI();
@@ -1846,6 +1854,84 @@ function rectsOverlap(a, b) {
            a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
+function applyNukeSplash(cx, cy) {
+    const radius = 55;
+    createExplosion(cx, cy, WEAPON_TYPES.NUKE.color, 14);
+    triggerShake(4);
+    // Splash damage to aliens
+    for (let alien of aliens) {
+        if (!alien.alive) continue;
+        const ax = alien.x + alien.width / 2;
+        const ay = alien.y + alien.height / 2;
+        if (Math.hypot(ax - cx, ay - cy) < radius) {
+            alien.hp--;
+            alien.hitFlash = 0.12;
+            createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
+            if (alien.hp <= 0) {
+                alien.alive = false;
+                addComboKill();
+                const mult = Math.min(comboCount, COMBO_MAX);
+                const pts = alien.points * mult * (alien.diving ? 2 : 1);
+                score += pts;
+                credits += pts;
+                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 30 : 20);
+                audio.playExplosion();
+                triggerShake(alien.type === 'TANK' ? 5 : 3);
+                if (alien.special) {
+                    if (Math.random() < 0.25) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
+                    else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                }
+                const ftText = mult > 1 ? `+${pts} ×${mult}` : `+${pts}`;
+                spawnFloatingText(alien.x + alien.width / 2, alien.y, ftText, alien.special ? '#fff' : alien.color);
+                updateUI();
+            }
+        }
+    }
+    // Splash damage to minions
+    for (let m of minions) {
+        if (!m.alive) continue;
+        const mx = m.x + m.width / 2;
+        const my = m.y + m.height / 2;
+        if (Math.hypot(mx - cx, my - cy) < radius) {
+            m.alive = false;
+            addComboKill();
+            const mult = Math.min(comboCount, COMBO_MAX);
+            const pts = m.points * mult;
+            score += pts;
+            credits += pts;
+            createExplosion(m.x + m.width / 2, m.y + m.height / 2, m.color, 10);
+            audio.playExplosion();
+            triggerShake(2);
+            spawnFloatingText(m.x + m.width / 2, m.y, `+${pts}`, m.color);
+            updateUI();
+        }
+    }
+    // Splash damage to boss
+    if (boss) {
+        const bx = boss.x + boss.width / 2;
+        const by = boss.y + boss.height / 2;
+        if (Math.hypot(bx - cx, by - cy) < radius + 25) {
+            boss.hp--;
+            createExplosion(cx, cy, '#f80', 6);
+            triggerShake(3);
+            if (boss.hp <= 0) {
+                score += boss.points;
+                credits += boss.points;
+                createExplosion(boss.x + boss.width/2, boss.y + boss.height/2, '#f00', 40);
+                audio.playBonus();
+                const typeLabel = boss.type === 'DESTROYER' ? 'DESTROYER' : boss.type === 'CARRIER' ? 'CARRIER' : 'ARTILLERY';
+                spawnFloatingText(boss.x + boss.width/2, boss.y, `${typeLabel} DOWN! +${boss.points}`, '#ff0');
+                spawnWeapon(boss.x + boss.width / 2, boss.y + boss.height);
+                boss = null;
+                audio.stopBGM();
+                audio.startBGM();
+                updateUI();
+                setTimeout(() => { if (gameState === 'playing' && !levelTransitioning) nextLevel(); }, 1000);
+            }
+        }
+    }
+}
+
 function checkCollisions() {
     // Bullets vs aliens & UFO
     for (let i = bullets.length - 1; i >= 0; i--) {
@@ -1862,6 +1948,7 @@ function checkCollisions() {
                 alien.hitFlash = 0.12;
                 createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
                 triggerShake(alien.type === 'TANK' ? 3 : 2);
+                if (b.type === 'NUKE') applyNukeSplash(alien.x + alien.width / 2, alien.y + alien.height / 2);
                 if (alien.hp <= 0) {
                     alien.alive = false;
                     addComboKill();
@@ -1889,6 +1976,7 @@ function checkCollisions() {
             const ufoRect = { x: ufo.x, y: ufo.y, width: ufo.width, height: ufo.height };
             if (rectsOverlap(bulletRect, ufoRect)) {
                 if (!isPierce) bullets.splice(i, 1);
+                if (b.type === 'NUKE') applyNukeSplash(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
                 score += ufo.points;
                 credits += ufo.points;
                 createExplosion(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#f0f', 22);
@@ -1909,6 +1997,7 @@ function checkCollisions() {
             if (rectsOverlap(bulletRect, mRect)) {
                 if (!isPierce) bullets.splice(i, 1);
                 m.alive = false;
+                if (b.type === 'NUKE') applyNukeSplash(m.x + m.width / 2, m.y + m.height / 2);
                 addComboKill();
                 const mult = Math.min(comboCount, COMBO_MAX);
                 const pts = m.points * mult;
@@ -1929,6 +2018,7 @@ function checkCollisions() {
             if (rectsOverlap(bulletRect, bossRect)) {
                 if (!isPierce) bullets.splice(i, 1);
                 boss.hp--;
+                if (b.type === 'NUKE') applyNukeSplash(boss.x + boss.width / 2, boss.y + boss.height / 2);
                 createExplosion(b.x, b.y, '#f80', 8);
                 triggerShake(3);
                 if (boss.hp <= 0) {
@@ -1953,7 +2043,7 @@ function checkCollisions() {
     // Minions vs player
     for (let m of minions) {
         if (!m.alive) continue;
-        if (rectsOverlap(m, player)) {
+        if (rectsOverlap(m, player) && !playerInvincible()) {
             m.alive = false;
             createExplosion(m.x + m.width/2, m.y + m.height/2, '#f00', 15);
             audio.playExplosion();
@@ -1972,6 +2062,8 @@ function checkCollisions() {
                 if (isFinal) {
                     setTimeout(() => endGame(), 700);
                     break;
+                } else {
+                    respawnPlayer();
                 }
             }
             updateUI();
@@ -1983,7 +2075,7 @@ function checkCollisions() {
         const b = bombs[i];
         const bombRect = { x: b.x - b.width / 2, y: b.y, width: b.width, height: b.height };
         const playerRect = { x: player.x, y: player.y, width: player.width, height: player.height };
-        if (rectsOverlap(bombRect, playerRect)) {
+        if (rectsOverlap(bombRect, playerRect) && !playerInvincible()) {
             bombs.splice(i, 1);
             if (player.shield) {
                 delete activePowerUps.SHIELD;
@@ -1999,6 +2091,8 @@ function checkCollisions() {
                 triggerShake(isFinal ? 14 : 10);
                 if (isFinal) {
                     setTimeout(() => endGame(), 700);
+                } else {
+                    respawnPlayer();
                 }
             }
             updateUI();
@@ -2326,6 +2420,11 @@ function proceedToNextLevel() {
         levelUpScreen.classList.add('hidden');
         createAliens();
         createBunkers();
+        // Re-apply ship starting ability at each new level
+        const ship = SHIP_CLASSES[selectedShipKey];
+        if (ship.startPowerUp) {
+            applyPowerUp(ship.startPowerUp);
+        }
         levelTransitioning = false;
         if (gameState === 'playing') {
             pauseBtn.classList.add('visible');
