@@ -631,7 +631,8 @@ function updateBoss(dt) {
                 y: boss.y + boss.height,
                 width: 5,
                 height: 10,
-                speed: 160 + Math.random() * 50
+                speed: 160 + Math.random() * 50,
+                trail: []
             });
         }
     }
@@ -1604,11 +1605,11 @@ function proceedToNextLevel() {
     levelUpScreen.classList.remove('hidden');
 
     setTimeout(() => {
+        levelUpScreen.classList.add('hidden');
+        createAliens();
+        createBunkers();
+        levelTransitioning = false;
         if (gameState === 'playing') {
-            levelUpScreen.classList.add('hidden');
-            createAliens();
-            createBunkers();
-            levelTransitioning = false;
             pauseBtn.classList.add('visible');
         }
     }, 1500);
