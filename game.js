@@ -427,16 +427,37 @@ let alienSpeed = 30;
 let alienDropDistance = 20;
 let alienMoveTimer = 0;
 let alienShootTimer = 0;
+let levelConfig = null;
+
+function getLevelConfig(level) {
+    const configs = [
+        { rows: 3, cols: 6, speed: 16, shootBase: 3.2 },
+        { rows: 3, cols: 7, speed: 20, shootBase: 2.8 },
+        { rows: 4, cols: 7, speed: 26, shootBase: 2.4 },
+        { rows: 4, cols: 8, speed: 32, shootBase: 2.0 },
+        { rows: 5, cols: 8, speed: 38, shootBase: 1.6 },
+    ];
+    const idx = Math.min(level - 1, configs.length - 1);
+    const base = configs[idx];
+    const extra = Math.max(0, level - configs.length);
+    return {
+        rows: base.rows,
+        cols: base.cols,
+        speed: base.speed + extra * 5,
+        shootBase: Math.max(0.3, base.shootBase - extra * 0.12)
+    };
+}
 
 function createAliens() {
     aliens = [];
-    const cols = 8;
-    const rows = 5;
+    levelConfig = getLevelConfig(level);
+    const cols = levelConfig.cols;
+    const rows = levelConfig.rows;
     const alienWidth = 30;
     const alienHeight = 20;
     const padding = 15;
     const startX = (canvas.width - (cols * (alienWidth + padding) - padding)) / 2;
-    const startY = Math.min(45 + (level - 1) * 6, 90);
+    const startY = Math.min(45 + (level - 1) * 5, 85);
 
     const colors = ['#f00', '#f80', '#ff0', '#0f0', '#0ff'];
 
@@ -449,10 +470,19 @@ function createAliens() {
                 height: alienHeight,
                 color: colors[r % colors.length],
                 points: (rows - r) * 10,
-                alive: true
+                alive: true,
+                special: false
             });
         }
     }
+
+    // Pick one random alien to be the special power-up carrier
+    const aliveIndices = aliens.map((a, i) => i);
+    const specialIdx = aliveIndices[Math.floor(Math.random() * aliveIndices.length)];
+    aliens[specialIdx].special = true;
+    aliens[specialIdx].points += 20; // Bonus points for special alien
+
+    alienSpeed = levelConfig.speed;
 }
 
 function updateAliens(dt) {
@@ -490,14 +520,17 @@ function updateAliens(dt) {
     }
 
     alienShootTimer += dt;
-    const shootInterval = Math.max(0.25, 2.2 - (40 - aliveAliens.length) * 0.035 - (level * 0.18));
+    const totalAliens = levelConfig ? levelConfig.rows * levelConfig.cols : 40;
+    const shootInterval = Math.max(0.25, levelConfig.shootBase - (totalAliens - aliveAliens.length) * 0.03);
     if (alienShootTimer >= shootInterval) {
         alienShootTimer = 0;
         const shooters = [];
-        for (let c = 0; c < 8; c++) {
+        const cols = levelConfig ? levelConfig.cols : 8;
+        const rows = levelConfig ? levelConfig.rows : 5;
+        for (let c = 0; c < cols; c++) {
             let bottomAlien = null;
-            for (let r = 4; r >= 0; r--) {
-                const idx = r * 8 + c;
+            for (let r = rows - 1; r >= 0; r--) {
+                const idx = r * cols + c;
                 if (aliens[idx] && aliens[idx].alive) {
                     bottomAlien = aliens[idx];
                     break;
@@ -527,16 +560,26 @@ function updateAliens(dt) {
 }
 
 function drawAliens() {
+    const pulse = Math.sin(Date.now() / 150) * 6 + 10;
     aliens.forEach(a => {
         if (!a.alive) return;
         ctx.fillStyle = a.color;
-        ctx.shadowColor = a.color;
-        ctx.shadowBlur = 8;
+        ctx.shadowColor = a.special ? '#fff' : a.color;
+        ctx.shadowBlur = a.special ? pulse : 8;
         const x = a.x, y = a.y, w = a.width, h = a.height;
         ctx.fillRect(x + w * 0.2, y, w * 0.6, h * 0.3);
         ctx.fillRect(x, y + h * 0.3, w, h * 0.5);
         ctx.fillRect(x + w * 0.15, y + h * 0.8, w * 0.2, h * 0.2);
         ctx.fillRect(x + w * 0.65, y + h * 0.8, w * 0.2, h * 0.2);
+
+        // Special alien marker
+        if (a.special) {
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(x + w / 2, y + h / 2, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
         ctx.shadowBlur = 0;
     });
 }
@@ -595,9 +638,9 @@ function checkCollisions() {
                 alien.alive = false;
                 bullets.splice(i, 1);
                 score += alien.points;
-                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color);
+                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 22 : 15);
                 audio.playExplosion();
-                if (Math.random() < 0.12) {
+                if (alien.special) {
                     spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
                 }
                 updateUI();
@@ -729,7 +772,8 @@ function nextLevel() {
     bombs = [];
     powerUps = [];
     alienDirection = 1;
-    alienSpeed = 30 + level * 8;
+    levelConfig = getLevelConfig(level);
+    alienSpeed = levelConfig.speed;
     alienMoveTimer = 0;
     alienShootTimer = 0;
 
