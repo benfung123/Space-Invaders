@@ -341,12 +341,33 @@ function updateCombo(dt) {
     }
 }
 
-// Responsive canvas sizing
+// Responsive canvas sizing — fixed logical resolution, CSS scales to fit viewport
+const GAME_WIDTH = 600;
+const GAME_HEIGHT = 800;
+
 function resizeCanvas() {
-    const maxWidth = Math.min(900, window.innerWidth - 20);
-    const maxHeight = window.innerWidth <= 768 ? window.innerHeight * 0.5 : window.innerHeight * 0.75;
-    canvas.width = maxWidth;
-    canvas.height = maxHeight;
+    const aspect = GAME_WIDTH / GAME_HEIGHT;
+    const margin = 16;
+    const reservedHeight = window.innerWidth <= 768 ? 210 : 110; // UI + controls
+
+    const maxDisplayW = window.innerWidth - margin * 2;
+    const maxDisplayH = window.innerHeight - reservedHeight;
+
+    let displayW = maxDisplayW;
+    let displayH = displayW / aspect;
+
+    if (displayH > maxDisplayH) {
+        displayH = maxDisplayH;
+        displayW = displayH * aspect;
+    }
+
+    // Fixed internal resolution — game logic always uses 600×800
+    canvas.width = GAME_WIDTH;
+    canvas.height = GAME_HEIGHT;
+
+    // CSS display size scales to fit viewport
+    canvas.style.width = Math.floor(displayW) + 'px';
+    canvas.style.height = Math.floor(displayH) + 'px';
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
