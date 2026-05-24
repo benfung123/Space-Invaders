@@ -11,10 +11,23 @@ class SoundManager {
         this.notes = [110, 110, 130, 110, 98, 98, 110, 98];
         this.masterVolume = 0.1;
         this.muted = false;
+
+        // MP3 BGM tracks
+        this.bgmNormal = new Audio('Gravity_Well.mp3');
+        this.bgmBoss = new Audio('Hull_Breach_Protocol.mp3');
+        this.bgmNormal.loop = true;
+        this.bgmBoss.loop = true;
+        this.bgmNormal.volume = 0.35;
+        this.bgmBoss.volume = 0.35;
+        this.bgmNormal.preload = 'auto';
+        this.bgmBoss.preload = 'auto';
+        this.currentTrack = null;
     }
 
     toggleMute() {
         this.muted = !this.muted;
+        this.bgmNormal.muted = this.muted;
+        this.bgmBoss.muted = this.muted;
         if (this.muted) {
             this.stopBGM();
         } else if (gameState === 'playing') {
@@ -74,12 +87,23 @@ class SoundManager {
     }
 
     startBGM() {
-        if (!this.initialized || this.bgmInterval || this.muted) return;
-        this.bgmInterval = setInterval(() => {
-            const freq = this.notes[this.noteIndex % this.notes.length];
-            this.noteIndex++;
-            this._osc('triangle', freq, 0.2, this.masterVolume * 0.35);
-        }, 250);
+        if (this.muted) return;
+        this.stopBGM();
+        const track = boss ? this.bgmBoss : this.bgmNormal;
+        const startPlaying = () => {
+            track.currentTime = 0;
+            track.play().catch(() => {});
+            this.currentTrack = track;
+        };
+        if (track.readyState >= 2) {
+            startPlaying();
+        } else {
+            const onReady = () => {
+                startPlaying();
+                track.removeEventListener('canplaythrough', onReady);
+            };
+            track.addEventListener('canplaythrough', onReady);
+        }
     }
 
     stopBGM() {
@@ -87,6 +111,9 @@ class SoundManager {
             clearInterval(this.bgmInterval);
             this.bgmInterval = null;
         }
+        this.bgmNormal.pause();
+        this.bgmBoss.pause();
+        this.currentTrack = null;
     }
 }
 
@@ -656,6 +683,8 @@ function spawnBoss() {
             jitterTimer: 0
         };
     }
+    audio.stopBGM();
+    audio.startBGM();
 }
 
 // ===== MINION SYSTEM =====
@@ -1644,6 +1673,8 @@ function checkCollisions() {
                     const typeLabel = boss.type === 'DESTROYER' ? 'DESTROYER' : boss.type === 'CARRIER' ? 'CARRIER' : 'ARTILLERY';
                     spawnFloatingText(boss.x + boss.width/2, boss.y, `${typeLabel} DOWN! +${boss.points}`, '#ff0');
                     boss = null;
+                    audio.stopBGM();
+                    audio.startBGM();
                     updateUI();
                     setTimeout(() => { if (gameState === 'playing' && !levelTransitioning) nextLevel(); }, 1000);
                 }
@@ -1839,6 +1870,7 @@ function closeShop() {
         proceedToNextLevel();
         lastTime = performance.now();
         gameLoop(lastTime);
+        audio.startBGM();
     }
 }
 
