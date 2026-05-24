@@ -1426,6 +1426,7 @@ function updateAliens(dt) {
             endGame();
         }
     }
+    }
 }
 
 function drawAliens() {
