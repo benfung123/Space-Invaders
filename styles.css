@@ -130,24 +130,26 @@ body {
     text-shadow: none;
 }
 
-.powerups {
+.powerups-canvas {
+    position: absolute;
+    top: 10px;
+    left: 90px;
     display: flex;
-    justify-content: center;
     gap: 8px;
-    width: 100%;
-    max-width: 600px;
-    padding: 2px 10px;
-    min-height: 24px;
+    z-index: 5;
+    pointer-events: none;
 }
 
 .powerup-tag {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 11px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1.5px solid;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
     font-weight: bold;
     animation: pulse 1s infinite;
+    white-space: nowrap;
+    text-shadow: 0 0 6px currentColor;
 }
 
 @keyframes pulse {
@@ -249,6 +251,14 @@ canvas {
     .level {
         font-size: 15px;
         padding: 2px 10px;
+    }
+    .powerups-canvas {
+        left: 75px;
+        gap: 5px;
+    }
+    .powerup-tag {
+        font-size: 11px;
+        padding: 2px 6px;
     }
 }
 
