@@ -10,8 +10,11 @@
     <div class="game-container">
         <div class="ui">
             <div class="score">Score: <span id="score">0</span></div>
+            <div class="level">Level: <span id="level">1</span></div>
+            <div class="high-score">High: <span id="highScore">0</span></div>
             <div class="lives">Lives: <span id="lives">3</span></div>
         </div>
+        <div class="powerups" id="powerupBar"></div>
         <canvas id="gameCanvas"></canvas>
         <div class="controls" id="mobileControls">
             <button id="leftBtn" class="control-btn">◀</button>
@@ -21,12 +24,18 @@
         <div class="overlay" id="startScreen">
             <h1>SPACE INVADERS</h1>
             <p>Use ← → to move, SPACE to shoot</p>
+            <p class="small">Collect power-ups: 🛡️ Shield | ⚡ Rapid | 🔱 Multi</p>
             <button id="startBtn">START GAME</button>
         </div>
         <div class="overlay hidden" id="gameOverScreen">
             <h1>GAME OVER</h1>
             <p>Final Score: <span id="finalScore">0</span></p>
+            <p class="high">High Score: <span id="finalHighScore">0</span></p>
             <button id="restartBtn">PLAY AGAIN</button>
+        </div>
+        <div class="overlay hidden" id="levelUpScreen">
+            <h1>LEVEL <span id="levelUpNum">2</span></h1>
+            <p>Get ready...</p>
         </div>
     </div>
     <script src="game.js"></script>
