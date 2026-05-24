@@ -92,6 +92,89 @@ let wavePerfect = true;
 let animationId;
 let lastTime = 0;
 
+// ===== SCREEN SHAKE =====
+let screenShake = 0;
+
+function triggerShake(intensity) {
+    screenShake = intensity;
+}
+
+function applyShake() {
+    if (screenShake > 0.3) {
+        const dx = (Math.random() - 0.5) * 2 * screenShake;
+        const dy = (Math.random() - 0.5) * 2 * screenShake;
+        ctx.save();
+        ctx.translate(dx, dy);
+    }
+}
+
+function decayShake() {
+    if (screenShake > 0.3) {
+        screenShake *= 0.88;
+        ctx.restore();
+    } else {
+        screenShake = 0;
+    }
+}
+
+// ===== ALIEN TYPES =====
+const ALIEN_TYPES = {
+    NORMAL: { hp: 1, pointsMult: 1.0, zigzag: false },
+    TANK:   { hp: 3, pointsMult: 1.5, zigzag: false },
+    FAST:   { hp: 1, pointsMult: 1.0, zigzag: true }
+};
+
+function getAlienDistribution(level) {
+    if (level === 1) return { NORMAL: 1.0, TANK: 0, FAST: 0 };
+    if (level === 2) return { NORMAL: 0.8, TANK: 0, FAST: 0.2 };
+    if (level === 3) return { NORMAL: 0.7, TANK: 0.1, FAST: 0.2 };
+    return { NORMAL: 0.5, TANK: 0.2, FAST: 0.3 };
+}
+
+function pickAlienType(level) {
+    const dist = getAlienDistribution(level);
+    const roll = Math.random();
+    if (roll < dist.NORMAL) return 'NORMAL';
+    if (roll < dist.NORMAL + dist.TANK) return 'TANK';
+    return 'FAST';
+}
+
+// ===== UPGRADE SHOP =====
+let upgrades = {
+    speedBonus: 0,
+    bunkerBonus: 0,
+    comboBonus: 0,
+    rapidStart: false
+};
+
+const SHOP_ITEMS = [
+    {
+        id: 'extraLife', name: 'Extra Life', desc: '+1 life', cost: 300,
+        canBuy: () => lives < 5,
+        buy: () => { lives++; }
+    },
+    {
+        id: 'speed', name: 'Faster Ship', desc: '+20% move speed', cost: 250,
+        canBuy: () => upgrades.speedBonus < 3,
+        buy: () => { upgrades.speedBonus++; }
+    },
+    {
+        id: 'bunker', name: 'Wider Bunkers', desc: '+1 brick row', cost: 200,
+        canBuy: () => upgrades.bunkerBonus < 2,
+        buy: () => { upgrades.bunkerBonus++; }
+    },
+    {
+        id: 'combo', name: 'Longer Combo', desc: '+0.5s combo window', cost: 150,
+        canBuy: () => upgrades.comboBonus < 3,
+        buy: () => { upgrades.comboBonus++; }
+    },
+    {
+        id: 'rapidStart', name: 'Rapid Fire Start', desc: 'Start with 5s rapid fire', cost: 150,
+        canBuy: () => !upgrades.rapidStart,
+        buy: () => { upgrades.rapidStart = true; }
+    }
+];
+
 // ===== BUNKERS =====
 let bunkers = [];
 const BUNKER_BRICK_W = 8;
@@ -100,13 +183,18 @@ const BUNKER_GAP = 2;
 
 function createBunkers() {
     bunkers = [];
-    const cols = 6, rows = 4;
+    const cols = 6;
+    let rows = 4 + upgrades.bunkerBonus;
     const pattern = [
         [1,1,1,1,1,1],
         [1,1,1,1,1,1],
         [1,1,0,0,1,1],
         [1,0,0,0,0,1]
     ];
+    // Extra rows from upgrade are solid
+    for (let e = 0; e < upgrades.bunkerBonus; e++) {
+        pattern.unshift([1,1,1,1,1,1]);
+    }
     const bWidth = cols * (BUNKER_BRICK_W + BUNKER_GAP) - BUNKER_GAP;
     const numBunkers = 4;
     const spacing = canvas.width / (numBunkers + 1);
@@ -184,12 +272,14 @@ function drawFloatingTexts() {
 // ===== COMBO SYSTEM =====
 let comboCount = 0;
 let comboTimer = 0;
-const COMBO_WINDOW = 2.2;
+function getComboWindow() {
+    return 2.2 + upgrades.comboBonus * 0.5;
+}
 const COMBO_MAX = 5;
 
 function addComboKill() {
     if (comboCount < COMBO_MAX) comboCount++;
-    comboTimer = COMBO_WINDOW;
+    comboTimer = getComboWindow();
     updateUI();
 }
 
@@ -565,6 +655,7 @@ const player = {
         this.y = canvas.height - this.height - 20;
         this.shield = false;
         this.initTime = 0;
+        this.speed = 300 * (1 + upgrades.speedBonus * 0.2);
     },
 
     getCooldown() {
@@ -649,6 +740,7 @@ function updateBullets(dt) {
                 b.y < brick.y + brick.height && b.y + b.height > brick.y) {
                 brick.alive = false;
                 createExplosion(brick.x + brick.width/2, brick.y + brick.height/2, '#0a0', 5);
+                triggerShake(1);
                 bullets.splice(i, 1);
                 break;
             }
@@ -758,15 +850,23 @@ function createAliens() {
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
+            const typeKey = pickAlienType(level);
+            const typeData = ALIEN_TYPES[typeKey];
             aliens.push({
                 x: startX + c * (alienWidth + padding),
                 y: startY + r * (alienHeight + padding),
                 width: alienWidth,
                 height: alienHeight,
                 color: colors[r % colors.length],
-                points: (rows - r) * 10,
+                points: Math.floor((rows - r) * 10 * typeData.pointsMult),
                 alive: true,
-                special: false
+                special: false,
+                type: typeKey,
+                hp: typeData.hp,
+                maxHp: typeData.hp,
+                zigzag: typeData.zigzag,
+                zigzagPhase: Math.random() * Math.PI * 2,
+                hitFlash: 0
             });
         }
     }
@@ -778,6 +878,13 @@ function createAliens() {
     aliens[specialIdx].points += 20; // Bonus points for special alien
 
     alienSpeed = levelConfig.speed;
+
+    // Apply rapid start upgrade
+    if (upgrades.rapidStart) {
+        activePowerUps.RAPID_FIRE = 5;
+        upgrades.rapidStart = false;
+        updatePowerUpUI();
+    }
 }
 
 function updateAliens(dt) {
@@ -864,20 +971,60 @@ function drawAliens() {
     const pulse = Math.sin(Date.now() / 150) * 6 + 10;
     aliens.forEach(a => {
         if (!a.alive) return;
-        ctx.fillStyle = a.color;
-        ctx.shadowColor = a.special ? '#fff' : a.color;
-        ctx.shadowBlur = a.special ? pulse : 8;
+
+        // Hit flash overrides color briefly
+        if (a.hitFlash > 0) {
+            ctx.fillStyle = '#fff';
+            ctx.shadowColor = '#fff';
+            ctx.shadowBlur = 14;
+        } else {
+            ctx.fillStyle = a.color;
+            ctx.shadowColor = a.special ? '#fff' : a.color;
+            ctx.shadowBlur = a.special ? pulse : 8;
+        }
+
         const x = a.x, y = a.y, w = a.width, h = a.height;
-        ctx.fillRect(x + w * 0.2, y, w * 0.6, h * 0.3);
-        ctx.fillRect(x, y + h * 0.3, w, h * 0.5);
-        ctx.fillRect(x + w * 0.15, y + h * 0.8, w * 0.2, h * 0.2);
-        ctx.fillRect(x + w * 0.65, y + h * 0.8, w * 0.2, h * 0.2);
+
+        // Fast aliens: slimmer body
+        if (a.type === 'FAST') {
+            ctx.fillRect(x + w * 0.3, y, w * 0.4, h * 0.35);
+            ctx.fillRect(x + w * 0.15, y + h * 0.35, w * 0.7, h * 0.45);
+            ctx.fillRect(x + w * 0.25, y + h * 0.8, w * 0.15, h * 0.2);
+            ctx.fillRect(x + w * 0.6, y + h * 0.8, w * 0.15, h * 0.2);
+            // Speed lines
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fillRect(x + w * 0.4, y - 3, w * 0.2, 2);
+        }
+        // Tank aliens: thicker armor frame
+        else if (a.type === 'TANK') {
+            ctx.fillRect(x + w * 0.15, y, w * 0.7, h * 0.35);
+            ctx.fillRect(x, y + h * 0.3, w, h * 0.55);
+            ctx.fillRect(x + w * 0.1, y + h * 0.85, w * 0.25, h * 0.15);
+            ctx.fillRect(x + w * 0.65, y + h * 0.85, w * 0.25, h * 0.15);
+            // Armor plate
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+            // HP dots
+            const dotColor = a.hp === a.maxHp ? '#0f0' : a.hp === 2 ? '#ff0' : '#f00';
+            ctx.fillStyle = dotColor;
+            for (let d = 0; d < a.hp; d++) {
+                ctx.fillRect(x + 4 + d * 6, y - 5, 4, 3);
+            }
+        }
+        // Normal aliens
+        else {
+            ctx.fillRect(x + w * 0.2, y, w * 0.6, h * 0.3);
+            ctx.fillRect(x, y + h * 0.3, w, h * 0.5);
+            ctx.fillRect(x + w * 0.15, y + h * 0.8, w * 0.2, h * 0.2);
+            ctx.fillRect(x + w * 0.65, y + h * 0.8, w * 0.2, h * 0.2);
+        }
 
         // Special alien marker
-        if (a.special) {
+        if (a.special && a.hitFlash <= 0) {
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(x + w / 2, y + h / 2, 3, 0, Math.PI * 2);
+            ctx.arc(x + w / 2, y + h / 2, 2.5, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -936,15 +1083,26 @@ function checkCollisions() {
         for (let alien of aliens) {
             if (!alien.alive) continue;
             if (rectsOverlap(bulletRect, alien)) {
-                alien.alive = false;
                 bullets.splice(i, 1);
-                score += alien.points;
-                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 22 : 15);
-                audio.playExplosion();
-                if (alien.special) {
-                    spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                alien.hp--;
+                alien.hitFlash = 0.12;
+                triggerShake(alien.type === 'TANK' ? 3 : 2);
+                if (alien.hp <= 0) {
+                    alien.alive = false;
+                    addComboKill();
+                    const mult = Math.min(comboCount, COMBO_MAX);
+                    const pts = alien.points * mult;
+                    score += pts;
+                    createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 22 : 15);
+                    audio.playExplosion();
+                    triggerShake(alien.type === 'TANK' ? 5 : 3);
+                    if (alien.special) {
+                        spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                    }
+                    const ftText = mult > 1 ? `+${pts} ×${mult}` : `+${pts}`;
+                    spawnFloatingText(alien.x + alien.width / 2, alien.y, ftText, alien.special ? '#fff' : alien.color);
+                    updateUI();
                 }
-                updateUI();
                 break;
             }
         }
@@ -957,6 +1115,7 @@ function checkCollisions() {
                 score += ufo.points;
                 createExplosion(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#f0f', 22);
                 audio.playBonus();
+                triggerShake(4);
                 ufo = null;
                 ufoNextSpawn = 8 + Math.random() * 10;
                 updateUI();
@@ -970,6 +1129,7 @@ function checkCollisions() {
                 bullets.splice(i, 1);
                 boss.hp--;
                 createExplosion(b.x, b.y, '#f80', 8);
+                triggerShake(3);
                 if (boss.hp <= 0) {
                     score += boss.points;
                     createExplosion(boss.x + boss.width/2, boss.y + boss.height/2, '#f00', 40);
@@ -1001,6 +1161,7 @@ function checkCollisions() {
                 lives--;
                 createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#0f0', 25);
                 audio.playExplosion();
+                triggerShake(10);
                 if (lives <= 0) {
                     endGame();
                 }
@@ -1040,6 +1201,93 @@ function updateUI() {
     }
 }
 
+// ===== PAUSE SYSTEM =====
+const pauseScreen = document.getElementById('pauseScreen');
+const pauseBtn = document.getElementById('pauseBtn');
+
+function togglePause() {
+    if (gameState === 'playing') {
+        gameState = 'paused';
+        screenShake = 0;
+        audio.stopBGM();
+        pauseScreen.classList.remove('hidden');
+        pauseBtn.classList.remove('visible');
+    } else if (gameState === 'paused') {
+        gameState = 'playing';
+        pauseScreen.classList.add('hidden');
+        audio.startBGM();
+        lastTime = performance.now();
+        gameLoop(lastTime);
+        pauseBtn.classList.add('visible');
+    }
+}
+
+document.getElementById('resumeBtn').addEventListener('click', togglePause);
+document.getElementById('quitBtn').addEventListener('click', () => {
+    togglePause();
+    gameState = 'menu';
+    pauseScreen.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    audio.stopBGM();
+});
+pauseBtn.addEventListener('click', togglePause);
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+        if (gameState === 'playing' || gameState === 'paused') {
+            togglePause();
+        }
+    }
+});
+
+// ===== SHOP SYSTEM =====
+const shopScreen = document.getElementById('shopScreen');
+const shopGrid = document.getElementById('shopGrid');
+const shopScoreEl = document.getElementById('shopScore');
+
+document.getElementById('shopContinueBtn').addEventListener('click', closeShop);
+
+function renderShop() {
+    shopScoreEl.textContent = score;
+    shopGrid.innerHTML = '';
+    SHOP_ITEMS.forEach(item => {
+        const can = item.canBuy();
+        const affordable = score >= item.cost;
+        const el = document.createElement('div');
+        el.className = 'shop-item' + (can && affordable ? ' affordable' : '') + (!can ? ' maxed' : '');
+        el.innerHTML = `
+            <div class="info">
+                <div class="name">${item.name}</div>
+                <div class="desc">${item.desc}</div>
+            </div>
+            <div class="cost">${item.cost}</div>
+            <button ${!can || !affordable ? 'disabled' : ''}>${!can ? 'MAXED' : 'BUY'}</button>
+        `;
+        const btn = el.querySelector('button');
+        if (can && affordable) {
+            btn.addEventListener('click', () => {
+                score -= item.cost;
+                item.buy();
+                audio.playPowerUp();
+                updateUI();
+                renderShop();
+            });
+        }
+        shopGrid.appendChild(el);
+    });
+}
+
+function openShop() {
+    shopScreen.classList.remove('hidden');
+    renderShop();
+    pauseBtn.classList.remove('visible');
+}
+
+function closeShop() {
+    shopScreen.classList.add('hidden');
+    proceedToNextLevel();
+}
+
 // ===== SCREENS & FLOW =====
 const startScreen = document.getElementById('startScreen');
 const gameOverScreen = document.getElementById('gameOverScreen');
@@ -1071,6 +1319,7 @@ function startGame() {
     wavePerfect = true;
     comboCount = 0;
     comboTimer = 0;
+    screenShake = 0;
     bullets = [];
     bombs = [];
     particles = [];
@@ -1086,6 +1335,7 @@ function startGame() {
     alienSpeed = 30;
     alienMoveTimer = 0;
     alienShootTimer = 0;
+    upgrades = { speedBonus: 0, bunkerBonus: 0, comboBonus: 0, rapidStart: false };
 
     player.init();
     createAliens();
@@ -1096,6 +1346,9 @@ function startGame() {
     startScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
     levelUpScreen.classList.add('hidden');
+    pauseScreen.classList.add('hidden');
+    shopScreen.classList.add('hidden');
+    pauseBtn.classList.add('visible');
 
     audio.startBGM();
     lastTime = performance.now();
@@ -1103,16 +1356,7 @@ function startGame() {
     gameLoop(lastTime);
 }
 
-function nextLevel() {
-    levelTransitioning = true;
-
-    // Wave perfect bonus
-    if (wavePerfect) {
-        score += 200;
-        spawnFloatingText(canvas.width / 2, canvas.height / 2, 'PERFECT WAVE! +200', '#ff0');
-        audio.playBonus();
-    }
-
+function proceedToNextLevel() {
     level++;
     boss = null;
     bullets = [];
@@ -1137,10 +1381,31 @@ function nextLevel() {
             createAliens();
             createBunkers();
             levelTransitioning = false;
+            pauseBtn.classList.add('visible');
         }
     }, 1500);
 
     updateUI();
+}
+
+function nextLevel() {
+    if (levelTransitioning) return;
+    levelTransitioning = true;
+
+    // Wave perfect bonus
+    if (wavePerfect) {
+        score += 200;
+        spawnFloatingText(canvas.width / 2, canvas.height / 2, 'PERFECT WAVE! +200', '#ff0');
+        audio.playBonus();
+    }
+
+    // Shop after every 3rd level (boss levels are 3,6,9... shop appears after beating boss)
+    if (level % 3 === 0) {
+        openShop();
+        return;
+    }
+
+    proceedToNextLevel();
 }
 
 function endGame() {
@@ -1152,6 +1417,9 @@ function endGame() {
     finalScore.textContent = score;
     finalHighScore.textContent = highScore;
     gameOverScreen.classList.remove('hidden');
+    pauseScreen.classList.add('hidden');
+    shopScreen.classList.add('hidden');
+    pauseBtn.classList.remove('visible');
     audio.stopBGM();
 }
 
@@ -1179,6 +1447,8 @@ function gameLoop(timestamp) {
     checkCollisions();
     updatePowerUpUI();
 
+    applyShake();
+
     drawStars();
     drawUfo();
     drawAliens();
@@ -1190,6 +1460,8 @@ function gameLoop(timestamp) {
     drawPowerUps();
     drawParticles();
     drawFloatingTexts();
+
+    decayShake();
 
     animationId = requestAnimationFrame(gameLoop);
 }

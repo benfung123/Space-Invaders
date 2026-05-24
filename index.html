@@ -16,7 +16,10 @@
             <div class="lives">Lives: <span id="lives">3</span></div>
         </div>
         <div class="powerups" id="powerupBar"></div>
-        <canvas id="gameCanvas"></canvas>
+        <div class="canvas-wrap">
+            <button id="pauseBtn" class="pause-btn">⏸</button>
+            <canvas id="gameCanvas"></canvas>
+        </div>
         <div class="controls" id="mobileControls">
             <button id="leftBtn" class="control-btn">◀</button>
             <button id="fireBtn" class="control-btn">🔥</button>
@@ -24,7 +27,7 @@
         </div>
         <div class="overlay" id="startScreen">
             <h1>SPACE INVADERS</h1>
-            <p>Use ← → to move, SPACE to shoot</p>
+            <p>Use ← → to move, SPACE to shoot, P to pause</p>
             <p class="small">Collect power-ups: 🛡️ Shield | ⚡ Rapid | 🔱 Multi</p>
             <button id="startBtn">START GAME</button>
         </div>
@@ -37,6 +40,17 @@
         <div class="overlay hidden" id="levelUpScreen">
             <h1>LEVEL <span id="levelUpNum">2</span></h1>
             <p>Get ready...</p>
+        </div>
+        <div class="overlay hidden" id="pauseScreen">
+            <h1>PAUSED</h1>
+            <button id="resumeBtn">RESUME</button>
+            <button id="quitBtn">QUIT TO MENU</button>
+        </div>
+        <div class="overlay hidden" id="shopScreen">
+            <h1>SUPPLY DROP</h1>
+            <p class="credits">Credits: <span id="shopScore">0</span></p>
+            <div class="shop-grid" id="shopGrid"></div>
+            <button id="shopContinueBtn">CONTINUE</button>
         </div>
     </div>
     <script src="game.js"></script>
