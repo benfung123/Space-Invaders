@@ -351,20 +351,33 @@ setupTouchBtn(leftBtn, 'left');
 setupTouchBtn(rightBtn, 'right');
 setupTouchBtn(fireBtn, 'fire');
 
-// ===== STARS =====
-const stars = [];
-for (let i = 0; i < 100; i++) {
-    stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 2 + 0.5,
-        speed: Math.random() * 0.5 + 0.1
+// ===== PARALLAX STARFIELD =====
+const STAR_LAYERS = [
+    { count: 60, speed: 0.4, sizeMin: 0.3, sizeMax: 1.0, opacity: 0.25 },
+    { count: 35, speed: 1.0, sizeMin: 0.8, sizeMax: 1.8, opacity: 0.55 },
+    { count: 15, speed: 2.2, sizeMin: 1.5, sizeMax: 3.0, opacity: 0.9  }
+];
+let stars = [];
+
+function initStars() {
+    stars = [];
+    STAR_LAYERS.forEach(layer => {
+        for (let i = 0; i < layer.count; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * (layer.sizeMax - layer.sizeMin) + layer.sizeMin,
+                speed: layer.speed,
+                opacity: layer.opacity
+            });
+        }
     });
 }
+initStars();
 
 function updateStars() {
     stars.forEach(star => {
-        star.y += star.speed * 2.5;
+        star.y += star.speed;
         if (star.y > canvas.height) {
             star.y = 0;
             star.x = Math.random() * canvas.width;
@@ -373,12 +386,14 @@ function updateStars() {
 }
 
 function drawStars() {
-    ctx.fillStyle = '#fff';
     stars.forEach(star => {
+        ctx.globalAlpha = star.opacity;
+        ctx.fillStyle = '#fff';
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
     });
+    ctx.globalAlpha = 1;
 }
 
 // ===== POWER-UP SYSTEM =====
@@ -700,11 +715,11 @@ const player = {
         const cx = this.x + this.width / 2;
         const cy = this.y;
         if (activePowerUps.MULTI_SHOT) {
-            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 0 });
-            bullets.push({ x: cx - 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: -130 });
-            bullets.push({ x: cx + 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 130 });
+            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 0, trail: [] });
+            bullets.push({ x: cx - 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: -130, trail: [] });
+            bullets.push({ x: cx + 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 130, trail: [] });
         } else {
-            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#0ff', dx: 0 });
+            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#0ff', dx: 0, trail: [] });
         }
         audio.playShoot();
         this.cooldown = this.getCooldown();
@@ -745,13 +760,17 @@ let bullets = [];
 
 function updateBullets(dt) {
     for (let i = bullets.length - 1; i >= 0; i--) {
-        bullets[i].y -= bullets[i].speed * dt;
-        bullets[i].x += (bullets[i].dx || 0) * dt;
+        const b = bullets[i];
+        // Update trail
+        b.trail.push({ x: b.x, y: b.y });
+        if (b.trail.length > 8) b.trail.shift();
+
+        b.y -= b.speed * dt;
+        b.x += (b.dx || 0) * dt;
 
         // Check bunker collision (player bullets destroy bunkers)
         for (let brick of bunkers) {
             if (!brick.alive) continue;
-            const b = bullets[i];
             if (b.x - b.width/2 < brick.x + brick.width && b.x + b.width/2 > brick.x &&
                 b.y < brick.y + brick.height && b.y + b.height > brick.y) {
                 brick.alive = false;
@@ -768,8 +787,20 @@ function updateBullets(dt) {
     }
 }
 
+function drawTrail(trail, color, width) {
+    if (trail.length < 2) return;
+    for (let i = 0; i < trail.length - 1; i++) {
+        const alpha = (i / trail.length) * 0.35;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = color;
+        ctx.fillRect(trail[i].x - width/2, trail[i].y, width, 3);
+    }
+    ctx.globalAlpha = 1;
+}
+
 function drawBullets() {
     bullets.forEach(b => {
+        drawTrail(b.trail, b.color, b.width * 1.5);
         ctx.fillStyle = b.color;
         ctx.shadowColor = b.color;
         ctx.shadowBlur = 8;
@@ -806,6 +837,7 @@ function updateBombs(dt) {
 
 function drawBombs() {
     bombs.forEach(b => {
+        drawTrail(b.trail, '#f00', b.width * 1.5);
         ctx.fillStyle = '#f00';
         ctx.shadowColor = '#f00';
         ctx.shadowBlur = 8;
@@ -822,6 +854,81 @@ let alienDropDistance = 14;
 let alienMoveTimer = 0;
 let alienShootTimer = 0;
 let levelConfig = null;
+let diveBomberTimer = 0;
+let diveBomberCooldown = 7 + Math.random() * 4;
+
+// ===== LEADERBOARD =====
+let leaderboard = JSON.parse(localStorage.getItem('si_leaderboard')) || [];
+
+function getLeaderboardRank(score) {
+    for (let i = 0; i < leaderboard.length; i++) {
+        if (score > leaderboard[i].score) return i;
+    }
+    return leaderboard.length < 5 ? leaderboard.length : -1;
+}
+
+function saveLeaderboard(name, score) {
+    const entry = {
+        name: name.toUpperCase().substring(0, 3) || 'AAA',
+        score: score,
+        level: level,
+        date: new Date().toLocaleDateString()
+    };
+    leaderboard.push(entry);
+    leaderboard.sort((a, b) => b.score - a.score);
+    leaderboard = leaderboard.slice(0, 5);
+    localStorage.setItem('si_leaderboard', JSON.stringify(leaderboard));
+    return leaderboard.findIndex(e => e === entry);
+}
+
+function renderLeaderboard(highlightIndex = -1) {
+    const table = document.getElementById('lbTable');
+    table.innerHTML = '';
+    if (leaderboard.length === 0) {
+        table.innerHTML = '<div class="lb-row"><span style="color:#888">No scores yet. Be the first!</span></div>';
+        return;
+    }
+    leaderboard.forEach((entry, i) => {
+        const row = document.createElement('div');
+        row.className = 'lb-row' + (i === highlightIndex ? ' highlight' : '');
+        row.innerHTML = `
+            <span class="lb-rank">#${i + 1}</span>
+            <span class="lb-name">${entry.name}</span>
+            <span class="lb-score">${entry.score}</span>
+        `;
+        table.appendChild(row);
+    });
+}
+
+const nameEntryScreen = document.getElementById('nameEntryScreen');
+const leaderboardScreen = document.getElementById('leaderboardScreen');
+const nameInput = document.getElementById('nameInput');
+
+document.getElementById('nameSubmitBtn').addEventListener('click', () => {
+    const name = nameInput.value;
+    const scoreVal = parseInt(document.getElementById('entryScore').textContent);
+    const highlightIdx = saveLeaderboard(name, scoreVal);
+    nameEntryScreen.classList.add('hidden');
+    renderLeaderboard(highlightIdx);
+    leaderboardScreen.classList.remove('hidden');
+});
+
+document.getElementById('lbPlayBtn').addEventListener('click', () => {
+    leaderboardScreen.classList.add('hidden');
+    startGame();
+});
+
+document.getElementById('lbMenuBtn').addEventListener('click', () => {
+    leaderboardScreen.classList.add('hidden');
+    gameState = 'menu';
+    startScreen.classList.remove('hidden');
+    renderMenuBackground();
+});
+
+document.getElementById('lbBtnStart').addEventListener('click', () => {
+    renderLeaderboard();
+    leaderboardScreen.classList.remove('hidden');
+});
 
 function getLevelConfig(level) {
     const configs = [
@@ -882,7 +989,9 @@ function createAliens() {
                 maxHp: typeData.hp,
                 zigzag: typeData.zigzag,
                 zigzagPhase: Math.random() * Math.PI * 2,
-                hitFlash: 0
+                hitFlash: 0,
+                diving: false,
+                diveSpeed: 0
             });
         }
     }
@@ -962,13 +1071,65 @@ function updateAliens(dt) {
                 y: shooter.y + shooter.height,
                 width: 4,
                 height: 8,
-                speed: 150 + Math.random() * 100 + level * 15
+                speed: 150 + Math.random() * 100 + level * 15,
+                trail: []
             });
         }
     }
 
+    // Dive bomber trigger
+    const hasDiver = aliveAliens.some(a => a.diving);
+    if (!hasDiver && level >= 2 && !boss) {
+        diveBomberTimer += dt;
+        if (diveBomberTimer >= diveBomberCooldown) {
+            diveBomberTimer = 0;
+            diveBomberCooldown = 6 + Math.random() * 5;
+            const candidates = aliveAliens.filter(a => a.type !== 'TANK' && !a.special);
+            if (candidates.length > 0) {
+                const diver = candidates[Math.floor(Math.random() * candidates.length)];
+                diver.diving = true;
+                diver.diveSpeed = 130 + level * 12;
+            }
+        }
+    }
+
+    // Update dive bombers
+    aliveAliens.forEach(a => {
+        if (a.diving) {
+            a.y += a.diveSpeed * dt;
+            a.x += (player.x - a.x) * 1.2 * dt;
+        }
+    });
+
+    // Check dive bomber collisions
     for (let alien of aliveAliens) {
-        if (alien.y + alien.height >= player.y) {
+        if (alien.diving) {
+            // Hit player directly
+            if (rectsOverlap(alien, player)) {
+                alien.alive = false;
+                createExplosion(alien.x + alien.width/2, alien.y + alien.height/2, '#f00', 20);
+                audio.playExplosion();
+                triggerShake(10);
+                if (player.shield) {
+                    delete activePowerUps.SHIELD;
+                    player.shield = false;
+                    updatePowerUpUI();
+                } else {
+                    lives--;
+                    wavePerfect = false;
+                    if (lives <= 0) {
+                        endGame();
+                        return;
+                    }
+                }
+                updateUI();
+                continue;
+            }
+            // Off screen
+            if (alien.y > canvas.height + 20) {
+                alien.alive = false;
+            }
+        } else if (alien.y + alien.height >= player.y) {
             lives = 0;
             wavePerfect = false;
             updateUI();
@@ -1031,8 +1192,24 @@ function drawAliens() {
             ctx.fillRect(x + w * 0.65, y + h * 0.8, w * 0.2, h * 0.2);
         }
 
+        // Dive bomber glow
+        if (a.diving && a.hitFlash <= 0) {
+            ctx.fillStyle = '#f00';
+            ctx.shadowColor = '#f00';
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.arc(x + w/2, y + h/2, w * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            // Trail dots
+            ctx.fillStyle = 'rgba(255,0,0,0.4)';
+            for (let t = 1; t <= 4; t++) {
+                ctx.fillRect(x + w/2 - 1, y + h + t * 5, 2, 2);
+            }
+        }
+
         // Special alien marker
-        if (a.special && a.hitFlash <= 0) {
+        if (a.special && a.hitFlash <= 0 && !a.diving) {
             ctx.fillStyle = '#fff';
             ctx.beginPath();
             ctx.arc(x + w / 2, y + h / 2, 2.5, 0, Math.PI * 2);
@@ -1102,7 +1279,7 @@ function checkCollisions() {
                     alien.alive = false;
                     addComboKill();
                     const mult = Math.min(comboCount, COMBO_MAX);
-                    const pts = alien.points * mult;
+                    const pts = alien.points * mult * (alien.diving ? 2 : 1);
                     score += pts;
                     createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 22 : 15);
                     audio.playExplosion();
@@ -1389,6 +1566,8 @@ function startGame() {
     levelUpScreen.classList.add('hidden');
     pauseScreen.classList.add('hidden');
     shopScreen.classList.add('hidden');
+    nameEntryScreen.classList.add('hidden');
+    leaderboardScreen.classList.add('hidden');
     pauseBtn.classList.add('visible');
 
     audio.startBGM();
@@ -1457,11 +1636,19 @@ function endGame() {
     }
     finalScore.textContent = score;
     finalHighScore.textContent = highScore;
-    gameOverScreen.classList.remove('hidden');
-    pauseScreen.classList.add('hidden');
-    shopScreen.classList.add('hidden');
     pauseBtn.classList.remove('visible');
     audio.stopBGM();
+
+    const rank = getLeaderboardRank(score);
+    if (rank >= 0 && score > 0) {
+        document.getElementById('entryRank').textContent = rank + 1;
+        document.getElementById('entryScore').textContent = score;
+        nameInput.value = 'AAA';
+        nameEntryScreen.classList.remove('hidden');
+    } else {
+        renderLeaderboard();
+        leaderboardScreen.classList.remove('hidden');
+    }
 }
 
 // ===== MAIN LOOP =====

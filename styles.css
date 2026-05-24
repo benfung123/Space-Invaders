@@ -389,3 +389,115 @@ canvas {
 .shop-item.affordable .name {
     color: #0f0;
 }
+
+/* ===== NAME ENTRY ===== */
+#nameEntryScreen {
+    border-color: #ff0;
+    box-shadow: 0 0 30px rgba(255, 255, 0, 0.3);
+    padding: 35px 40px;
+}
+
+#nameEntryScreen h1 {
+    color: #ff0;
+    text-shadow: 0 0 15px #ff0;
+    margin-bottom: 10px;
+}
+
+#nameEntryScreen .entry-rank {
+    color: #0ff;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+#nameEntryScreen .entry-score {
+    color: #fff;
+    font-size: 18px;
+    margin-bottom: 20px;
+}
+
+#nameInput {
+    width: 120px;
+    padding: 10px;
+    font-size: 24px;
+    text-align: center;
+    letter-spacing: 6px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #0f0;
+    color: #0f0;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+#nameInput:focus {
+    outline: none;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+/* ===== LEADERBOARD ===== */
+#leaderboardScreen {
+    border-color: #0ff;
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+    padding: 30px 25px;
+    max-width: 90vw;
+    width: 380px;
+}
+
+#leaderboardScreen h1 {
+    color: #0ff;
+    text-shadow: 0 0 15px #0ff;
+    font-size: 28px;
+    margin-bottom: 15px;
+}
+
+.lb-table {
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.lb-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 10px;
+    font-size: 15px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+}
+
+.lb-row.highlight {
+    background: rgba(255, 255, 0, 0.15);
+    border: 1px solid #ff0;
+    border-radius: 4px;
+}
+
+.lb-row .lb-rank {
+    color: #888;
+    min-width: 30px;
+    text-align: left;
+}
+
+.lb-row .lb-name {
+    color: #fff;
+    flex: 1;
+    text-align: center;
+    letter-spacing: 3px;
+    font-weight: bold;
+}
+
+.lb-row .lb-score {
+    color: #0f0;
+    min-width: 70px;
+    text-align: right;
+}
+
+.lb-row.highlight .lb-rank { color: #ff0; }
+.lb-row.highlight .lb-name { color: #ff0; }
+.lb-row.highlight .lb-score { color: #ff0; }
+
+#lbBtnStart {
+    background: #0af;
+    color: #fff;
+}
+
+#lbBtnStart:hover {
+    box-shadow: 0 0 20px rgba(0, 170, 255, 0.5);
+}

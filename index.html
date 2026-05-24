@@ -31,6 +31,7 @@
             <p>Use ← → to move, SPACE to shoot, P to pause</p>
             <p class="small">Collect power-ups: 🛡️ Shield | ⚡ Rapid | 🔱 Multi</p>
             <button id="startBtn">START GAME</button>
+            <button id="lbBtnStart">🏆 LEADERBOARD</button>
         </div>
         <div class="overlay hidden" id="gameOverScreen">
             <h1>GAME OVER</h1>
@@ -53,6 +54,19 @@
             <p class="credits">Credits: <span id="shopScore">0</span></p>
             <div class="shop-grid" id="shopGrid"></div>
             <button id="shopContinueBtn">CONTINUE</button>
+        </div>
+        <div class="overlay hidden" id="nameEntryScreen">
+            <h1>TOP 5!</h1>
+            <p class="entry-rank">Rank #<span id="entryRank">1</span></p>
+            <p class="entry-score">Score: <span id="entryScore">0</span></p>
+            <input type="text" id="nameInput" maxlength="3" placeholder="AAA" value="AAA">
+            <button id="nameSubmitBtn">SUBMIT</button>
+        </div>
+        <div class="overlay hidden" id="leaderboardScreen">
+            <h1>🏆 LEADERBOARD</h1>
+            <div class="lb-table" id="lbTable"></div>
+            <button id="lbPlayBtn">PLAY AGAIN</button>
+            <button id="lbMenuBtn">MAIN MENU</button>
         </div>
     </div>
     <script src="game.js"></script>
