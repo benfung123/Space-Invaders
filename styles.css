@@ -333,6 +333,33 @@ canvas {
     display: none !important;
 }
 
+.loop-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.loop-btn {
+    background: #f0f !important;
+    color: #fff !important;
+    font-size: 16px !important;
+    padding: 10px 24px !important;
+}
+
+.loop-btn.secondary {
+    background: #333 !important;
+    color: #aaa !important;
+    font-size: 14px !important;
+}
+
+.loop-record {
+    color: #f0f;
+    font-size: 14px;
+    margin: 8px 0;
+    text-shadow: 0 0 8px #f0f;
+}
+
 #levelUpScreen {
     border-color: #0ff;
     box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);

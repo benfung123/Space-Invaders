@@ -38,6 +38,7 @@
             <p>Use ← → to move, SPACE to shoot, P to pause</p>
             <p class="small">Collect power-ups: 🛡️ Shield | ⚡ Rapid | 🔱 Multi</p>
             <div class="theme-swatches" id="themeSwatches"></div>
+            <p id="loopRecord" class="loop-record hidden"></p>
             <button id="startBtn">START GAME</button>
             <button id="lbBtnStart">🏆 LEADERBOARD</button>
         </div>
@@ -53,6 +54,10 @@
             <p>Final Score: <span id="finalScore">0</span></p>
             <p class="high">High Score: <span id="finalHighScore">0</span></p>
             <div id="unlockNotice" class="unlock-notice hidden"></div>
+            <div id="loopOptions" class="loop-options hidden">
+                <button id="loopContinueBtn" class="loop-btn">🔁 CONTINUE LOOP</button>
+                <button id="loopResetBtn" class="loop-btn secondary">🔄 RESET TO LOOP 1</button>
+            </div>
             <button id="restartBtn">PLAY AGAIN</button>
         </div>
         <div class="overlay hidden" id="levelUpScreen">
