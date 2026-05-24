@@ -267,6 +267,30 @@ canvas {
 #pauseScreen h1 {
     color: #ff0;
     text-shadow: 0 0 15px #ff0;
+    margin-bottom: 25px;
+}
+
+#pauseScreen {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 35px 45px;
+}
+
+#pauseScreen button {
+    margin: 4px 0;
+    width: 200px;
+}
+
+#quitBtn {
+    background: #800;
+    color: #faa;
+    border: 2px solid #f44;
+}
+
+#quitBtn:hover {
+    background: #a00;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
 }
 
 #pauseShopBtn {
