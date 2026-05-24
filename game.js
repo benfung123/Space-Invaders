@@ -904,7 +904,7 @@ function spawnBoss() {
         rage: false,
         rageFlash: 0
     };
-    const loopSpeedMult = Math.min(1.0 + (loopCount - 1) * 0.2, 2.5);
+    const loopSpeedMult = Math.min(1.0 + loopCount * 0.2, 2.5);
     if (type === 'DESTROYER') {
         boss = {
             ...base,
@@ -1069,12 +1069,13 @@ function updateBoss_DESTROYER(dt) {
         const laserY = b.y + b.height * 0.72;
         const laserH = 12;
         if (!b.laserHitPlayer && player.y + player.height >= laserY && player.y <= laserY + laserH) {
-            b.laserHitPlayer = true;
             if (player.shield) {
                 delete activePowerUps.SHIELD;
                 player.shield = false;
+                b.laserHitPlayer = true;
                 updatePowerUpUI();
             } else if (!playerInvincible()) {
+                b.laserHitPlayer = true;
                 lives--;
                 createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#f00', 25);
                 audio.playExplosion();
@@ -1706,8 +1707,8 @@ function createAliens() {
                 alive: true,
                 special: false,
                 type: typeKey,
-                hp: typeData.hp + Math.min(loopCount - 1, 4),
-                maxHp: typeData.hp + Math.min(loopCount - 1, 4),
+                hp: typeData.hp + Math.min(loopCount, 4),
+                maxHp: typeData.hp + Math.min(loopCount, 4),
                 zigzag: typeData.zigzag,
                 zigzagPhase: Math.random() * Math.PI * 2,
                 hitFlash: 0,
@@ -1728,7 +1729,7 @@ function createAliens() {
     aliens[specialIdx].points += 20; // Bonus points for special alien
 
     // Roll elites (~15% base chance, increased in loops)
-    const eliteRate = Math.min(0.15 + (loopCount - 1) * 0.05, 0.80);
+    const eliteRate = Math.min(0.15 + loopCount * 0.05, 0.80);
     const eliteKeys = Object.keys(ELITE_TYPES);
     for (let a of aliens) {
         if (Math.random() < eliteRate) {
@@ -1757,7 +1758,7 @@ function updateAliens(dt) {
     }
 
     // Hazard event scheduler
-    if (!eventTriggeredThisLevel && level >= 2 && !boss) {
+    if (!eventTriggeredThisLevel && level >= 2 && !boss && !levelTransitioning) {
         const timeInLevel = (levelConfig.rows * levelConfig.cols - aliveAliens.length) * 0.5; // rough proxy
         if (timeInLevel > 2 && Math.random() < 0.008) { // ~25% chance over a typical level
             eventTriggeredThisLevel = true;
@@ -1784,9 +1785,11 @@ function updateAliens(dt) {
                 activeEvent = { type: 'REINFORCEMENT', timer: 0 };
                 const reinforceCount = 4 + Math.floor(Math.random() * 3);
                 const rColors = themeColor('alienRows');
+                const rWidth = 22, rPadding = 15;
+                const rStartX = (canvas.width - (reinforceCount * (rWidth + rPadding) - rPadding)) / 2;
                 for (let i = 0; i < reinforceCount; i++) {
                     aliens.push({
-                        x: 50 + i * 45,
+                        x: rStartX + i * (rWidth + rPadding),
                         y: -20,
                         width: 22, height: 16,
                         color: rColors[0],
@@ -1892,15 +1895,24 @@ function updateAliens(dt) {
             m.x < player.x + player.width && m.x + m.size > player.x &&
             m.y < player.y + player.height && m.y + m.size > player.y) {
             m.alive = false;
-            lives--;
-            const isFinal = lives <= 0;
-            createExplosion(player.x + player.width / 2, player.y + player.height / 2, isFinal ? '#ff0' : '#0f0', isFinal ? 45 : 25);
-            audio.playExplosion();
-            triggerShake(isFinal ? 14 : 10);
-            if (isFinal) {
-                setTimeout(() => endGame(), 700);
+            wavePerfect = false;
+            if (player.shield) {
+                delete activePowerUps.SHIELD;
+                player.shield = false;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#08f', 22);
+                audio.playHitShield();
+                updatePowerUpUI();
             } else {
-                respawnPlayer();
+                lives--;
+                const isFinal = lives <= 0;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, isFinal ? '#ff0' : '#0f0', isFinal ? 45 : 25);
+                audio.playExplosion();
+                triggerShake(isFinal ? 14 : 10);
+                if (isFinal) {
+                    setTimeout(() => endGame(), 700);
+                } else {
+                    respawnPlayer();
+                }
             }
             updateUI();
         }
@@ -1910,9 +1922,10 @@ function updateAliens(dt) {
         }
     }
 
-    // Process alien telegraphs (paused during EMP)
+    // Decrement hit flash and process telegraphs (paused during EMP)
     if (!empActive) {
     for (let a of aliveAliens) {
+        if (a.hitFlash > 0) a.hitFlash -= dt;
         if (a.telegraphTimer > 0) {
             a.telegraphTimer -= dt;
             if (a.telegraphTimer <= 0 && a.alive) {
@@ -1940,19 +1953,16 @@ function updateAliens(dt) {
     const shootInterval = Math.max(0.25, levelConfig.shootBase - (totalAliens - aliveAliens.length) * 0.03);
     if (alienShootTimer >= shootInterval) {
         alienShootTimer = 0;
+        // Find bottom-most aliens per column using aliveAliens (works with reinforcements/splitters)
         const shooters = [];
-        const cols = levelConfig ? levelConfig.cols : 8;
-        const rows = levelConfig ? levelConfig.rows : 5;
-        for (let c = 0; c < cols; c++) {
-            let bottomAlien = null;
-            for (let r = rows - 1; r >= 0; r--) {
-                const idx = r * cols + c;
-                if (aliens[idx] && aliens[idx].alive) {
-                    bottomAlien = aliens[idx];
-                    break;
-                }
-            }
-            if (bottomAlien && bottomAlien.width >= 20) shooters.push(bottomAlien);
+        for (let a of aliveAliens) {
+            if (a.width < 20 || a.parachute || a.telegraphTimer > 0) continue;
+            const hasAlienBelow = aliveAliens.some(other =>
+                other !== a && other.alive &&
+                Math.abs(other.x - a.x) < a.width &&
+                other.y > a.y
+            );
+            if (!hasAlienBelow) shooters.push(a);
         }
         if (shooters.length > 0) {
             const shooter = shooters[Math.floor(Math.random() * shooters.length)];
@@ -1968,7 +1978,7 @@ function updateAliens(dt) {
         if (diveBomberTimer >= diveBomberCooldown) {
             diveBomberTimer = 0;
             diveBomberCooldown = 6 + Math.random() * 5;
-            const candidates = aliveAliens.filter(a => a.type !== 'TANK' && !a.special && a.width >= 20);
+            const candidates = aliveAliens.filter(a => a.type !== 'TANK' && !a.special && a.width >= 20 && a.telegraphTimer <= 0);
             if (candidates.length > 0) {
                 const diver = candidates[Math.floor(Math.random() * candidates.length)];
                 diver.telegraphTimer = 0.40;
@@ -2028,6 +2038,7 @@ function updateAliens(dt) {
             endGame();
         }
     }
+    aliens = aliens.filter(a => a.alive);
     }
 }
 
@@ -2297,11 +2308,12 @@ function applyNukeSplash(cx, cy) {
                 alien.shieldHp--;
                 alien.hitFlash = 0.15;
                 createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, '#08f', 6);
-                continue;
             }
-            alien.hp--;
-            alien.hitFlash = 0.12;
-            createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
+            if (alien.shieldHp <= 0) {
+                alien.hp--;
+                alien.hitFlash = 0.12;
+                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
+            }
             if (alien.hp <= 0) {
                 alien.alive = false;
                 addComboKill();
@@ -2312,7 +2324,34 @@ function applyNukeSplash(cx, cy) {
                 createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 30 : 20);
                 audio.playExplosion();
                 triggerShake(alien.type === 'TANK' ? 5 : 3);
-                if (alien.special) {
+                if (alien.elite === 'SPLITTER') {
+                    for (let s = -1; s <= 1; s += 2) {
+                        aliens.push({
+                            x: alien.x + alien.width / 2 - 4,
+                            y: alien.y + alien.height,
+                            width: 8, height: 8,
+                            color: '#f80',
+                            points: 5,
+                            alive: true,
+                            special: false,
+                            type: 'NORMAL',
+                            hp: 1, maxHp: 1,
+                            zigzag: false,
+                            zigzagPhase: 0,
+                            hitFlash: 0,
+                            diving: false,
+                            diveSpeed: 0,
+                            telegraphTimer: 0,
+                            telegraphType: null,
+                            elite: null,
+                            shieldHp: 0
+                        });
+                    }
+                }
+                if (alien.elite === 'CARRIER') {
+                    if (Math.random() < 0.5) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
+                    else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                } else if (alien.special) {
                     if (Math.random() < 0.25) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
                     else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
                 }
@@ -2391,11 +2430,14 @@ function checkCollisions() {
                     continue;
                 }
                 if (!isPierce) bullets.splice(i, 1);
-                alien.hp--;
-                alien.hitFlash = 0.12;
-                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
-                triggerShake(alien.type === 'TANK' ? 3 : 2);
-                if (b.type === 'NUKE') applyNukeSplash(alien.x + alien.width / 2, alien.y + alien.height / 2);
+                const isNuke = b.type === 'NUKE';
+                if (!isNuke) {
+                    alien.hp--;
+                    alien.hitFlash = 0.12;
+                    createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
+                    triggerShake(alien.type === 'TANK' ? 3 : 2);
+                }
+                if (isNuke) applyNukeSplash(alien.x + alien.width / 2, alien.y + alien.height / 2);
                 if (alien.hp <= 0) {
                     alien.alive = false;
                     addComboKill();
@@ -2447,6 +2489,8 @@ function checkCollisions() {
             }
         }
 
+        if (!bullets[i]) continue; // Bullet was consumed by alien hit
+
         // UFO
         if (ufo && bullets[i]) {
             const ufoRect = { x: ufo.x, y: ufo.y, width: ufo.width, height: ufo.height };
@@ -2488,6 +2532,8 @@ function checkCollisions() {
             }
         }
 
+        if (!bullets[i]) continue; // Bullet was consumed by minion hit
+
         // Boss
         if (boss && bullets[i]) {
             const bossRect = { x: boss.x, y: boss.y, width: boss.width, height: boss.height };
@@ -2495,10 +2541,11 @@ function checkCollisions() {
                 if (!isPierce) bullets.splice(i, 1);
                 boss.hp--;
                 checkBossRage();
-                if (b.type === 'NUKE') applyNukeSplash(boss.x + boss.width / 2, boss.y + boss.height / 2);
+                const nukeHit = b.type === 'NUKE';
+                if (nukeHit) applyNukeSplash(boss.x + boss.width / 2, boss.y + boss.height / 2);
                 createExplosion(b.x, b.y, '#f80', 8);
                 triggerShake(3);
-                if (boss.hp <= 0) {
+                if (boss && boss.hp <= 0) {
                     score += boss.points;
                     credits += boss.points;
                     createExplosion(boss.x + boss.width/2, boss.y + boss.height/2, '#f00', 40);
@@ -2512,7 +2559,7 @@ function checkCollisions() {
                     updateUI();
                     setTimeout(() => { if (gameState === 'playing' && !levelTransitioning) nextLevel(); }, 1000);
                 }
-                break;
+                // Don't break — let other bullets process this frame
             }
         }
     }
@@ -2905,6 +2952,8 @@ function startGame() {
     alienSpeed = 30;
     alienMoveTimer = 0;
     alienShootTimer = 0;
+    diveBomberTimer = 0;
+    diveBomberCooldown = 7 + Math.random() * 4;
     if (loopCount > 0 && carriedUpgrades) {
         upgrades = { ...carriedUpgrades };
     } else {
@@ -2949,6 +2998,7 @@ function proceedToNextLevel() {
     comboCount = 0;
     comboTimer = 0;
     wavePerfect = true;
+    screenShake = 0;
     alienDirection = 1;
     levelConfig = getLevelConfig(level);
     alienSpeed = levelConfig.speed;
@@ -2959,6 +3009,16 @@ function proceedToNextLevel() {
     empActive = false;
     empTimer = 0;
     meteors = [];
+    weapons = [];
+    particles = [];
+    singularities = [];
+    ufo = null;
+    ufoTimer = 0;
+    activeWeapon = null;
+    weaponTimer = 0;
+    wingmen = [];
+    diveBomberTimer = 0;
+    harbingerShotCounter = 0;
 
     document.getElementById('levelUpNum').textContent = level;
     levelUpScreen.classList.remove('hidden');
