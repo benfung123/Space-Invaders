@@ -50,6 +50,22 @@ body {
     text-shadow: 0 0 8px #0ff;
 }
 
+.combo {
+    color: #888;
+    text-shadow: none;
+    transition: color 0.2s;
+}
+
+.combo.active {
+    color: #f80;
+    text-shadow: 0 0 8px #f80;
+}
+
+.combo.hot {
+    color: #f00;
+    text-shadow: 0 0 10px #f00;
+}
+
 .powerups {
     display: flex;
     justify-content: center;

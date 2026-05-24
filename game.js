@@ -88,8 +88,120 @@ let highScore = parseInt(localStorage.getItem('si_highScore')) || 0;
 let lives = 3;
 let level = 1;
 let levelTransitioning = false;
+let wavePerfect = true;
 let animationId;
 let lastTime = 0;
+
+// ===== BUNKERS =====
+let bunkers = [];
+const BUNKER_BRICK_W = 8;
+const BUNKER_BRICK_H = 6;
+const BUNKER_GAP = 2;
+
+function createBunkers() {
+    bunkers = [];
+    const cols = 6, rows = 4;
+    const pattern = [
+        [1,1,1,1,1,1],
+        [1,1,1,1,1,1],
+        [1,1,0,0,1,1],
+        [1,0,0,0,0,1]
+    ];
+    const bWidth = cols * (BUNKER_BRICK_W + BUNKER_GAP) - BUNKER_GAP;
+    const numBunkers = 4;
+    const spacing = canvas.width / (numBunkers + 1);
+    const y = canvas.height - 68;
+
+    for (let b = 0; b < numBunkers; b++) {
+        const bx = spacing * (b + 1) - bWidth / 2;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (pattern[r][c]) {
+                    bunkers.push({
+                        x: bx + c * (BUNKER_BRICK_W + BUNKER_GAP),
+                        y: y + r * (BUNKER_BRICK_H + BUNKER_GAP),
+                        width: BUNKER_BRICK_W,
+                        height: BUNKER_BRICK_H,
+                        alive: true
+                    });
+                }
+            }
+        }
+    }
+}
+
+function drawBunkers() {
+    ctx.fillStyle = '#0a0';
+    ctx.shadowColor = '#0f0';
+    ctx.shadowBlur = 4;
+    bunkers.forEach(b => {
+        if (!b.alive) return;
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+    });
+    ctx.shadowBlur = 0;
+}
+
+// ===== FLOATING TEXT =====
+let floatingTexts = [];
+
+function spawnFloatingText(x, y, text, color = '#fff') {
+    floatingTexts.push({
+        x: x,
+        y: y,
+        text: text,
+        color: color,
+        life: 0.9,
+        maxLife: 0.9,
+        vy: -50
+    });
+}
+
+function updateFloatingTexts(dt) {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.y += ft.vy * dt;
+        ft.life -= dt;
+        if (ft.life <= 0) {
+            floatingTexts.splice(i, 1);
+        }
+    }
+}
+
+function drawFloatingTexts() {
+    floatingTexts.forEach(ft => {
+        ctx.globalAlpha = Math.max(0, ft.life / ft.maxLife);
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 15px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = ft.color;
+        ctx.shadowBlur = 6;
+        ctx.fillText(ft.text, ft.x, ft.y);
+    });
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+}
+
+// ===== COMBO SYSTEM =====
+let comboCount = 0;
+let comboTimer = 0;
+const COMBO_WINDOW = 2.2;
+const COMBO_MAX = 5;
+
+function addComboKill() {
+    if (comboCount < COMBO_MAX) comboCount++;
+    comboTimer = COMBO_WINDOW;
+    updateUI();
+}
+
+function updateCombo(dt) {
+    if (comboTimer > 0) {
+        comboTimer -= dt;
+        if (comboTimer <= 0) {
+            comboCount = 0;
+            updateUI();
+        }
+    }
+}
 
 // Responsive canvas sizing
 function resizeCanvas() {
@@ -553,6 +665,7 @@ function updateAliens(dt) {
     for (let alien of aliveAliens) {
         if (alien.y + alien.height >= player.y) {
             lives = 0;
+            wavePerfect = false;
             updateUI();
             endGame();
         }
@@ -707,6 +820,16 @@ function updateUI() {
     document.getElementById('lives').textContent = lives;
     document.getElementById('level').textContent = level;
     document.getElementById('highScore').textContent = highScore;
+
+    const comboEl = document.getElementById('combo');
+    const comboBox = document.getElementById('comboBox');
+    comboEl.textContent = comboCount;
+    comboBox.classList.remove('active', 'hot');
+    if (comboCount >= 4) {
+        comboBox.classList.add('hot');
+    } else if (comboCount >= 2) {
+        comboBox.classList.add('active');
+    }
 }
 
 // ===== SCREENS & FLOW =====
@@ -737,9 +860,13 @@ function startGame() {
     lives = 3;
     level = 1;
     levelTransitioning = false;
+    wavePerfect = true;
+    comboCount = 0;
+    comboTimer = 0;
     bullets = [];
     bombs = [];
     particles = [];
+    floatingTexts = [];
     powerUps = [];
     activePowerUps = {};
     ufo = null;
@@ -752,6 +879,7 @@ function startGame() {
 
     player.init();
     createAliens();
+    createBunkers();
     updateUI();
     updatePowerUpUI();
 
@@ -767,10 +895,22 @@ function startGame() {
 
 function nextLevel() {
     levelTransitioning = true;
+
+    // Wave perfect bonus
+    if (wavePerfect) {
+        score += 200;
+        spawnFloatingText(canvas.width / 2, canvas.height / 2, 'PERFECT WAVE! +200', '#ff0');
+        audio.playBonus();
+    }
+
     level++;
     bullets = [];
     bombs = [];
     powerUps = [];
+    floatingTexts = [];
+    comboCount = 0;
+    comboTimer = 0;
+    wavePerfect = true;
     alienDirection = 1;
     levelConfig = getLevelConfig(level);
     alienSpeed = levelConfig.speed;
@@ -784,6 +924,7 @@ function nextLevel() {
         if (gameState === 'playing') {
             levelUpScreen.classList.add('hidden');
             createAliens();
+            createBunkers();
             levelTransitioning = false;
         }
     }, 1500);
@@ -821,17 +962,21 @@ function gameLoop(timestamp) {
     updateUfo(dt);
     updatePowerUps(dt);
     updateParticles(dt);
+    updateCombo(dt);
+    updateFloatingTexts(dt);
     checkCollisions();
     updatePowerUpUI();
 
     drawStars();
     drawUfo();
     drawAliens();
+    drawBunkers();
     drawBombs();
     player.draw();
     drawBullets();
     drawPowerUps();
     drawParticles();
+    drawFloatingTexts();
 
     animationId = requestAnimationFrame(gameLoop);
 }
