@@ -530,6 +530,42 @@ const POWERUP_TYPES = {
     WINGMAN: { color: '#0f0', glow: '#0f0', label: '✈️ WING', duration: 10 }
 };
 
+const WEAPON_TYPES = {
+    SPREAD:  { color: '#ff8c00', glow: '#ff8c00', label: '🔥 SPREAD',  duration: 8,  symbol: 'F' },
+    PIERCE:  { color: '#e0f7fa', glow: '#fff',    label: '⚡ PIERCE',  duration: 8,  symbol: 'P' },
+    HOMING:  { color: '#ff69b4', glow: '#ff69b4', label: '🎯 HOMING',  duration: 10, symbol: 'H' },
+    BOUNCE:  { color: '#7fff00', glow: '#7fff00', label: '↩️ BOUNCE',  duration: 8,  symbol: 'B' }
+};
+
+const THEMES = {
+    CLASSIC:   { name: 'Classic',   player: '#0f0', bullet: '#0ff', bomb: '#f00', bunker: '#0a0', bunkerGlow: '#0f0', minion: '#0f0', ui: '#0f0', star: '#fff', alienRows: ['#f00','#f80','#ff0','#0f0','#0ff'] },
+    CYBERPUNK: { name: 'Cyberpunk', player: '#f0f', bullet: '#ff0', bomb: '#f0f', bunker: '#408', bunkerGlow: '#f0f', minion: '#f0f', ui: '#f0f', star: '#f0f', alienRows: ['#f0f','#f0f','#ff0','#0ff','#0ff'] },
+    MATRIX:    { name: 'Matrix',    player: '#0f0', bullet: '#0f0', bomb: '#0a0', bunker: '#050', bunkerGlow: '#0f0', minion: '#0f0', ui: '#0f0', star: '#0f0', alienRows: ['#0a0','#0a0','#0f0','#0f0','#0f0'] },
+    SUNSET:    { name: 'Sunset',    player: '#f80', bullet: '#ff0', bomb: '#f00', bunker: '#804', bunkerGlow: '#f80', minion: '#f80', ui: '#f80', star: '#ff0', alienRows: ['#f00','#f80','#ff0','#f80','#80f'] },
+    ICE:       { name: 'Ice',       player: '#0ff', bullet: '#fff', bomb: '#08f', bunker: '#048', bunkerGlow: '#0ff', minion: '#0ff', ui: '#0ff', star: '#8ff', alienRows: ['#048','#08f','#0ff','#8ff','#fff'] }
+};
+
+let currentTheme = localStorage.getItem('si_theme') || 'CLASSIC';
+
+function themeColor(key) {
+    return THEMES[currentTheme][key];
+}
+
+function applyTheme(themeKey) {
+    currentTheme = themeKey;
+    localStorage.setItem('si_theme', themeKey);
+    const t = THEMES[themeKey];
+    const root = document.documentElement;
+    root.style.setProperty('--theme-primary', t.ui);
+    root.style.setProperty('--theme-bullet', t.bullet);
+    root.style.setProperty('--theme-bomb', t.bomb);
+    root.style.setProperty('--theme-bunker', t.bunker);
+}
+
+let activeWeapon = null;
+let weaponTimer = 0;
+let weapons = [];
+
 let powerUps = [];
 let activePowerUps = {};
 let wingmen = [];
@@ -601,6 +637,70 @@ function updatePowerUpUI() {
         tag.textContent = p.duration === -1 ? p.label : `${p.label} ${Math.ceil(activePowerUps[type])}s`;
         bar.appendChild(tag);
     }
+    if (activeWeapon) {
+        const w = WEAPON_TYPES[activeWeapon];
+        const tag = document.createElement('div');
+        tag.className = 'powerup-tag';
+        tag.style.borderColor = w.color;
+        tag.style.color = w.color;
+        tag.textContent = `${w.label} ${Math.ceil(weaponTimer)}s`;
+        bar.appendChild(tag);
+    }
+}
+
+// ===== WEAPON CRATES =====
+function spawnWeapon(x, y) {
+    const types = Object.keys(WEAPON_TYPES);
+    const type = types[Math.floor(Math.random() * types.length)];
+    weapons.push({
+        x: x - 10, y: y,
+        width: 20, height: 20,
+        type: type,
+        speed: 60,
+        ...WEAPON_TYPES[type]
+    });
+}
+
+function updateWeapons(dt) {
+    for (let i = weapons.length - 1; i >= 0; i--) {
+        weapons[i].y += weapons[i].speed * dt;
+        if (weapons[i].y > canvas.height) {
+            weapons.splice(i, 1);
+        }
+    }
+}
+
+function drawWeapons() {
+    weapons.forEach(w => {
+        ctx.fillStyle = w.color;
+        ctx.shadowColor = w.glow;
+        ctx.shadowBlur = 12;
+        ctx.fillRect(w.x, w.y, w.width, w.height);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(w.symbol, w.x + w.width / 2, w.y + w.height / 2 + 1);
+    });
+}
+
+function applyWeapon(type) {
+    activeWeapon = type;
+    weaponTimer = WEAPON_TYPES[type].duration;
+    audio.playPowerUp();
+    spawnFloatingText(player.x + player.width / 2, player.y - 20, WEAPON_TYPES[type].label, WEAPON_TYPES[type].color);
+    updatePowerUpUI();
+}
+
+function updateWeaponTimer(dt) {
+    if (activeWeapon) {
+        weaponTimer -= dt;
+        if (weaponTimer <= 0) {
+            activeWeapon = null;
+            updatePowerUpUI();
+        }
+    }
 }
 
 // ===== WINGMAN SYSTEM =====
@@ -653,7 +753,7 @@ function drawWingmen() {
         ctx.closePath();
         ctx.fill();
         // Engine glow
-        ctx.fillStyle = '#0af';
+        ctx.fillStyle = themeColor('bullet');
         ctx.fillRect(w.x + w.width / 2 - 2, w.y + w.height, 4, 4);
         ctx.shadowBlur = 0;
     });
@@ -800,10 +900,11 @@ function updateMinions(dt) {
 }
 
 function drawMinions() {
+    const minionColor = themeColor('minion');
     minions.forEach(m => {
         if (!m.alive) return;
-        ctx.fillStyle = m.color;
-        ctx.shadowColor = m.color;
+        ctx.fillStyle = minionColor;
+        ctx.shadowColor = minionColor;
         ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.moveTo(m.x + m.width / 2, m.y + m.height);
@@ -1121,12 +1222,21 @@ const player = {
         if (this.cooldown > 0) return;
         const cx = this.x + this.width / 2;
         const cy = this.y;
-        if (activePowerUps.MULTI_SHOT) {
+        if (activeWeapon === 'SPREAD') {
+            const angles = [-260, -130, 0, 130, 260];
+            angles.forEach(a => bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: WEAPON_TYPES.SPREAD.color, dx: a, trail: [] }));
+        } else if (activeWeapon === 'PIERCE') {
+            bullets.push({ x: cx, y: cy, width: 3, height: 14, speed: 650, color: WEAPON_TYPES.PIERCE.color, dx: 0, trail: [], type: 'PIERCE' });
+        } else if (activeWeapon === 'HOMING') {
+            bullets.push({ x: cx, y: cy, width: 5, height: 10, speed: 420, color: WEAPON_TYPES.HOMING.color, dx: 0, trail: [], type: 'HOMING' });
+        } else if (activeWeapon === 'BOUNCE') {
+            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: WEAPON_TYPES.BOUNCE.color, dx: 0, trail: [], type: 'BOUNCE' });
+        } else if (activePowerUps.MULTI_SHOT) {
             bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 0, trail: [] });
             bullets.push({ x: cx - 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: -130, trail: [] });
             bullets.push({ x: cx + 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 130, trail: [] });
         } else {
-            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#0ff', dx: 0, trail: [] });
+            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: themeColor('bullet'), dx: 0, trail: [] });
         }
         audio.playShoot();
         this.cooldown = this.getCooldown();
@@ -1156,7 +1266,7 @@ const player = {
         ctx.lineTo(this.x, this.y + this.height);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = '#0af';
+        ctx.fillStyle = themeColor('bullet');
         ctx.fillRect(this.x + this.width / 2 - 3, this.y + this.height, 6, 6);
         ctx.shadowBlur = 0;
     }
@@ -1172,23 +1282,53 @@ function updateBullets(dt) {
         b.trail.push({ x: b.x, y: b.y });
         if (b.trail.length > 8) b.trail.shift();
 
-        b.y -= b.speed * dt;
-        b.x += (b.dx || 0) * dt;
-
-        // Check bunker collision (player bullets destroy bunkers)
-        for (let brick of bunkers) {
-            if (!brick.alive) continue;
-            if (b.x - b.width/2 < brick.x + brick.width && b.x + b.width/2 > brick.x &&
-                b.y < brick.y + brick.height && b.y + b.height > brick.y) {
-                brick.alive = false;
-                createExplosion(brick.x + brick.width/2, brick.y + brick.height/2, '#0a0', 5);
-                triggerShake(1);
-                bullets.splice(i, 1);
-                break;
+        // Homing behavior
+        if (b.type === 'HOMING') {
+            let nearest = null;
+            let nearestDist = Infinity;
+            for (let alien of aliens) {
+                if (!alien.alive) continue;
+                const d = Math.hypot(alien.x + alien.width/2 - b.x, alien.y + alien.height/2 - b.y);
+                if (d < nearestDist) { nearestDist = d; nearest = alien; }
+            }
+            if (boss) {
+                const d = Math.hypot(boss.x + boss.width/2 - b.x, boss.y + boss.height/2 - b.y);
+                if (d < nearestDist) { nearestDist = d; nearest = boss; }
+            }
+            if (nearest) {
+                const tx = nearest.x + (nearest.width || 0) / 2;
+                const turn = (tx - b.x) * 3;
+                b.dx = (b.dx || 0) + (turn - (b.dx || 0)) * 5 * dt;
+                b.dx = Math.max(-200, Math.min(200, b.dx));
             }
         }
 
-        if (bullets[i] && (bullets[i].y < -bullets[i].height || bullets[i].x < -30 || bullets[i].x > canvas.width + 30)) {
+        b.y -= b.speed * dt;
+        b.x += (b.dx || 0) * dt;
+
+        // Bounce off side walls
+        if (b.type === 'BOUNCE') {
+            if (b.x < 0) { b.x = 0; b.dx = Math.abs(b.dx || 0) + 30; }
+            if (b.x > canvas.width) { b.x = canvas.width; b.dx = -(Math.abs(b.dx || 0) + 30); }
+        }
+
+        // Check bunker collision (player bullets destroy bunkers)
+        // Pierce bullets pass through bunkers
+        if (b.type !== 'PIERCE') {
+            for (let brick of bunkers) {
+                if (!brick.alive) continue;
+                if (b.x - b.width/2 < brick.x + brick.width && b.x + b.width/2 > brick.x &&
+                    b.y < brick.y + brick.height && b.y + b.height > brick.y) {
+                    brick.alive = false;
+                    createExplosion(brick.x + brick.width/2, brick.y + brick.height/2, '#0a0', 5);
+                    triggerShake(1);
+                    bullets.splice(i, 1);
+                    break;
+                }
+            }
+        }
+
+        if (bullets[i] && (bullets[i].y < -bullets[i].height || bullets[i].x < -50 || bullets[i].x > canvas.width + 50)) {
             bullets.splice(i, 1);
         }
     }
@@ -1245,10 +1385,11 @@ function updateBombs(dt) {
 }
 
 function drawBombs() {
+    const bombColor = themeColor('bomb');
     bombs.forEach(b => {
-        drawTrail(b.trail, '#f00', b.width * 1.5);
-        ctx.fillStyle = '#f00';
-        ctx.shadowColor = '#f00';
+        drawTrail(b.trail, bombColor, b.width * 1.5);
+        ctx.fillStyle = bombColor;
+        ctx.shadowColor = bombColor;
         ctx.shadowBlur = 8;
         ctx.fillRect(b.x - b.width / 2, b.y, b.width, b.height);
         ctx.shadowBlur = 0;
@@ -1378,7 +1519,7 @@ function createAliens() {
     const startX = (canvas.width - (cols * (alienWidth + padding) - padding)) / 2;
     const startY = Math.min(45 + (level - 1) * 5, 85);
 
-    const colors = ['#f00', '#f80', '#ff0', '#0f0', '#0ff'];
+    const colors = themeColor('alienRows');
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -1680,10 +1821,11 @@ function checkCollisions() {
         const bulletRect = { x: b.x - b.width / 2, y: b.y, width: b.width, height: b.height };
 
         // Aliens
+        const isPierce = b.type === 'PIERCE';
         for (let alien of aliens) {
             if (!alien.alive) continue;
             if (rectsOverlap(bulletRect, alien)) {
-                bullets.splice(i, 1);
+                if (!isPierce) bullets.splice(i, 1);
                 alien.hp--;
                 alien.hitFlash = 0.12;
                 triggerShake(alien.type === 'TANK' ? 3 : 2);
@@ -1698,13 +1840,14 @@ function checkCollisions() {
                     audio.playExplosion();
                     triggerShake(alien.type === 'TANK' ? 5 : 3);
                     if (alien.special) {
-                        spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                        if (Math.random() < 0.25) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
+                        else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
                     }
                     const ftText = mult > 1 ? `+${pts} ×${mult}` : `+${pts}`;
                     spawnFloatingText(alien.x + alien.width / 2, alien.y, ftText, alien.special ? '#fff' : alien.color);
                     updateUI();
                 }
-                break;
+                if (!isPierce) break;
             }
         }
 
@@ -1712,13 +1855,14 @@ function checkCollisions() {
         if (ufo && bullets[i]) {
             const ufoRect = { x: ufo.x, y: ufo.y, width: ufo.width, height: ufo.height };
             if (rectsOverlap(bulletRect, ufoRect)) {
-                bullets.splice(i, 1);
+                if (!isPierce) bullets.splice(i, 1);
                 score += ufo.points;
                 credits += ufo.points;
                 createExplosion(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#f0f', 22);
                 audio.playBonus();
                 triggerShake(4);
-                spawnPowerUp(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
+                if (Math.random() < 0.3) spawnWeapon(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
+                else spawnPowerUp(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
                 ufo = null;
                 ufoNextSpawn = 8 + Math.random() * 10;
                 updateUI();
@@ -1730,7 +1874,7 @@ function checkCollisions() {
             if (!m.alive || !bullets[i]) continue;
             const mRect = { x: m.x, y: m.y, width: m.width, height: m.height };
             if (rectsOverlap(bulletRect, mRect)) {
-                bullets.splice(i, 1);
+                if (!isPierce) bullets.splice(i, 1);
                 m.alive = false;
                 addComboKill();
                 const mult = Math.min(comboCount, COMBO_MAX);
@@ -1742,7 +1886,7 @@ function checkCollisions() {
                 triggerShake(2);
                 spawnFloatingText(m.x + m.width / 2, m.y, `+${pts}`, m.color);
                 updateUI();
-                break;
+                if (!isPierce) break;
             }
         }
 
@@ -1750,7 +1894,7 @@ function checkCollisions() {
         if (boss && bullets[i]) {
             const bossRect = { x: boss.x, y: boss.y, width: boss.width, height: boss.height };
             if (rectsOverlap(bulletRect, bossRect)) {
-                bullets.splice(i, 1);
+                if (!isPierce) bullets.splice(i, 1);
                 boss.hp--;
                 createExplosion(b.x, b.y, '#f80', 8);
                 triggerShake(3);
@@ -1761,6 +1905,7 @@ function checkCollisions() {
                     audio.playBonus();
                     const typeLabel = boss.type === 'DESTROYER' ? 'DESTROYER' : boss.type === 'CARRIER' ? 'CARRIER' : 'ARTILLERY';
                     spawnFloatingText(boss.x + boss.width/2, boss.y, `${typeLabel} DOWN! +${boss.points}`, '#ff0');
+                    spawnWeapon(boss.x + boss.width / 2, boss.y + boss.height);
                     boss = null;
                     audio.stopBGM();
                     audio.startBGM();
@@ -1831,6 +1976,17 @@ function checkCollisions() {
         if (rectsOverlap(pRect, playerRect)) {
             applyPowerUp(p.type);
             powerUps.splice(i, 1);
+        }
+    }
+
+    // Weapon crates vs player
+    for (let i = weapons.length - 1; i >= 0; i--) {
+        const w = weapons[i];
+        const wRect = { x: w.x, y: w.y, width: w.width, height: w.height };
+        const playerRect = { x: player.x, y: player.y, width: player.width, height: player.height };
+        if (rectsOverlap(wRect, playerRect)) {
+            applyWeapon(weapons[i].type);
+            weapons.splice(i, 1);
         }
     }
 }
@@ -2004,6 +2160,24 @@ function showShipSelect() {
     shipSelectScreen.classList.remove('hidden');
 }
 
+function renderThemeSwatches() {
+    const container = document.getElementById('themeSwatches');
+    if (!container) return;
+    container.innerHTML = '';
+    for (const key in THEMES) {
+        const t = THEMES[key];
+        const swatch = document.createElement('div');
+        swatch.className = 'theme-swatch' + (key === currentTheme ? ' active' : '');
+        swatch.style.backgroundColor = t.ui;
+        swatch.title = t.name;
+        swatch.addEventListener('click', () => {
+            applyTheme(key);
+            renderThemeSwatches();
+        });
+        container.appendChild(swatch);
+    }
+}
+
 document.getElementById('startBtn').addEventListener('click', () => {
     audio.init();
     showShipSelect();
@@ -2047,6 +2221,9 @@ function startGame() {
     particles = [];
     floatingTexts = [];
     powerUps = [];
+    weapons = [];
+    activeWeapon = null;
+    weaponTimer = 0;
     activePowerUps = {};
     wingmen = [];
     ufo = null;
@@ -2225,11 +2402,12 @@ function drawLives() {
     const gap = 6;
     const startX = 12;
     const startY = 12;
+    const heartColor = themeColor('bomb');
     for (let i = 0; i < lives; i++) {
         const x = startX + i * (heartSize + gap);
         const y = startY;
-        ctx.fillStyle = '#f00';
-        ctx.shadowColor = '#f00';
+        ctx.fillStyle = heartColor;
+        ctx.shadowColor = heartColor;
         ctx.shadowBlur = 10;
         ctx.beginPath();
         const topCurveHeight = heartSize * 0.3;
@@ -2303,6 +2481,8 @@ function gameLoop(timestamp) {
     updateBombs(dt);
     updateUfo(dt);
     updatePowerUps(dt);
+    updateWeapons(dt);
+    updateWeaponTimer(dt);
     updateParticles(dt);
     updateCombo(dt);
     updateFloatingTexts(dt);
@@ -2322,6 +2502,7 @@ function gameLoop(timestamp) {
     drawWingmen();
     drawBullets();
     drawPowerUps();
+    drawWeapons();
     drawParticles();
     drawFloatingTexts();
     drawShipStatus();
@@ -2344,3 +2525,7 @@ renderMenuBackground();
 
 // Init high score display
 document.getElementById('highScore').textContent = highScore;
+
+// Init theme
+applyTheme(currentTheme);
+renderThemeSwatches();

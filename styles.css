@@ -31,8 +31,8 @@ body {
     padding: 8px 15px;
     font-size: 15px;
     font-weight: bold;
-    color: #0f0;
-    text-shadow: 0 0 8px #0f0;
+    color: var(--theme-primary);
+    text-shadow: 0 0 8px var(--theme-primary);
 }
 
 .ui-left,
@@ -55,6 +55,32 @@ body {
 .high-score {
     color: #ff0;
     text-shadow: 0 0 8px #ff0;
+}
+
+.theme-swatches {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.theme-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #333;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.theme-swatch:hover {
+    transform: scale(1.15);
+}
+
+.theme-swatch.active {
+    border-color: #fff;
+    box-shadow: 0 0 10px #fff;
+    transform: scale(1.15);
 }
 
 .credits {
@@ -165,10 +191,17 @@ body {
     display: block;
 }
 
+:root {
+    --theme-primary: #0f0;
+    --theme-bullet: #0ff;
+    --theme-bomb: #f00;
+    --theme-bunker: #0a0;
+}
+
 canvas {
     background: #000;
-    border: 2px solid #0f0;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    border: 2px solid var(--theme-primary);
+    box-shadow: 0 0 20px var(--theme-primary);
     image-rendering: pixelated;
 }
 
