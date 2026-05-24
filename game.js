@@ -2411,7 +2411,7 @@ function endGame() {
     finalHighScore.textContent = highScore;
     pauseBtn.classList.remove('visible');
     shopBtn.classList.remove('visible');
-    audio.stopBGM();
+    audio.startShopBGM();
 
     const rank = getLeaderboardRank(score);
     if (rank >= 0 && score > 0) {
