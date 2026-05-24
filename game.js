@@ -462,6 +462,93 @@ function drawUfo() {
     ctx.shadowBlur = 0;
 }
 
+// ===== BOSS SYSTEM =====
+let boss = null;
+let bossDefeated = false;
+
+function getBossHp(level) {
+    return 5 + (level - 3) * 3;
+}
+
+function spawnBoss() {
+    const hp = getBossHp(level);
+    boss = {
+        x: canvas.width / 2 - 70,
+        y: 35,
+        width: 140,
+        height: 70,
+        speed: 45 + (level - 3) * 3,
+        direction: 1,
+        hp: hp,
+        maxHp: hp,
+        shootTimer: 0,
+        shootInterval: Math.max(0.35, 1.4 - (level - 3) * 0.08),
+        moveTimer: 0,
+        points: 300 + level * 80
+    };
+}
+
+function updateBoss(dt) {
+    if (!boss) return;
+    boss.moveTimer += dt;
+    if (boss.moveTimer >= 0.4) {
+        boss.moveTimer = 0;
+        boss.x += boss.direction * boss.speed * 0.4;
+        if (boss.x <= 10) { boss.direction = 1; boss.x = 10; }
+        if (boss.x + boss.width >= canvas.width - 10) { boss.direction = -1; boss.x = canvas.width - boss.width - 10; }
+    }
+    boss.shootTimer += dt;
+    if (boss.shootTimer >= boss.shootInterval) {
+        boss.shootTimer = 0;
+        const spread = Math.min(4, 1 + Math.floor((level - 3) / 2));
+        for (let s = -spread; s <= spread; s++) {
+            bombs.push({
+                x: boss.x + boss.width / 2 + s * 18,
+                y: boss.y + boss.height,
+                width: 5,
+                height: 10,
+                speed: 160 + Math.random() * 50
+            });
+        }
+    }
+    if (boss.y + boss.height >= player.y) {
+        lives = 0;
+        wavePerfect = false;
+        updateUI();
+        endGame();
+    }
+}
+
+function drawBoss() {
+    if (!boss) return;
+    const x = boss.x, y = boss.y, w = boss.width, h = boss.height;
+    ctx.fillStyle = '#f00';
+    ctx.shadowColor = '#f80';
+    ctx.shadowBlur = 20;
+    ctx.fillRect(x + w * 0.1, y + h * 0.25, w * 0.8, h * 0.45);
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h * 0.25, w * 0.38, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(x + w * 0.22, y + h * 0.35, w * 0.14, h * 0.12);
+    ctx.fillRect(x + w * 0.64, y + h * 0.35, w * 0.14, h * 0.12);
+    ctx.fillStyle = '#f80';
+    ctx.fillRect(x, y + h * 0.55, w * 0.12, h * 0.3);
+    ctx.fillRect(x + w * 0.88, y + h * 0.55, w * 0.12, h * 0.3);
+    ctx.shadowBlur = 0;
+    const barW = w * 0.7;
+    const barH = 7;
+    const barX = x + w * 0.15;
+    const barY = y - 14;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = boss.hp > boss.maxHp * 0.4 ? '#0f0' : '#f00';
+    ctx.fillRect(barX, barY, barW * (boss.hp / boss.maxHp), barH);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+}
+
 // ===== PLAYER =====
 const player = {
     x: 0, y: 0,
@@ -553,7 +640,21 @@ function updateBullets(dt) {
     for (let i = bullets.length - 1; i >= 0; i--) {
         bullets[i].y -= bullets[i].speed * dt;
         bullets[i].x += (bullets[i].dx || 0) * dt;
-        if (bullets[i].y < -bullets[i].height || bullets[i].x < -30 || bullets[i].x > canvas.width + 30) {
+
+        // Check bunker collision (player bullets destroy bunkers)
+        for (let brick of bunkers) {
+            if (!brick.alive) continue;
+            const b = bullets[i];
+            if (b.x - b.width/2 < brick.x + brick.width && b.x + b.width/2 > brick.x &&
+                b.y < brick.y + brick.height && b.y + b.height > brick.y) {
+                brick.alive = false;
+                createExplosion(brick.x + brick.width/2, brick.y + brick.height/2, '#0a0', 5);
+                bullets.splice(i, 1);
+                break;
+            }
+        }
+
+        if (bullets[i] && (bullets[i].y < -bullets[i].height || bullets[i].x < -30 || bullets[i].x > canvas.width + 30)) {
             bullets.splice(i, 1);
         }
     }
@@ -575,7 +676,21 @@ let bombs = [];
 function updateBombs(dt) {
     for (let i = bombs.length - 1; i >= 0; i--) {
         bombs[i].y += bombs[i].speed * dt;
-        if (bombs[i].y > canvas.height) {
+
+        // Check bunker collision (enemy bombs destroy bunkers)
+        for (let brick of bunkers) {
+            if (!brick.alive) continue;
+            const b = bombs[i];
+            if (b.x - b.width/2 < brick.x + brick.width && b.x + b.width/2 > brick.x &&
+                b.y < brick.y + brick.height && b.y + b.height > brick.y) {
+                brick.alive = false;
+                createExplosion(brick.x + brick.width/2, brick.y + brick.height/2, '#0a0', 5);
+                bombs.splice(i, 1);
+                break;
+            }
+        }
+
+        if (bombs[i] && bombs[i].y > canvas.height) {
             bombs.splice(i, 1);
         }
     }
@@ -604,9 +719,9 @@ function getLevelConfig(level) {
     const configs = [
         { rows: 3, cols: 6, speed: 16, shootBase: 3.2 },
         { rows: 3, cols: 7, speed: 20, shootBase: 2.8 },
-        { rows: 4, cols: 7, speed: 26, shootBase: 2.4 },
-        { rows: 4, cols: 8, speed: 32, shootBase: 2.0 },
-        { rows: 5, cols: 8, speed: 38, shootBase: 1.6 },
+        { rows: 4, cols: 7, speed: 24, shootBase: 2.4 },
+        { rows: 4, cols: 8, speed: 28, shootBase: 2.0 },
+        { rows: 5, cols: 8, speed: 34, shootBase: 1.6 },
     ];
     const idx = Math.min(level - 1, configs.length - 1);
     const base = configs[idx];
@@ -614,12 +729,21 @@ function getLevelConfig(level) {
     return {
         rows: base.rows,
         cols: base.cols,
-        speed: base.speed + extra * 5,
-        shootBase: Math.max(0.3, base.shootBase - extra * 0.12)
+        speed: Math.min(48, base.speed + extra * 2),
+        shootBase: Math.max(0.15, base.shootBase - extra * 0.18)
     };
 }
 
 function createAliens() {
+    // Boss every 3rd level starting at level 3
+    if (level >= 3 && (level - 3) % 3 === 0) {
+        boss = null;
+        spawnBoss();
+        aliens = [];
+        levelConfig = { rows: 0, cols: 0, speed: 0, shootBase: 0.5 };
+        return;
+    }
+    boss = null;
     aliens = [];
     levelConfig = getLevelConfig(level);
     const cols = levelConfig.cols;
@@ -657,6 +781,10 @@ function createAliens() {
 }
 
 function updateAliens(dt) {
+    if (boss) {
+        updateBoss(dt);
+        return;
+    }
     const aliveAliens = aliens.filter(a => a.alive);
     if (aliveAliens.length === 0 && !levelTransitioning) {
         nextLevel();
@@ -678,7 +806,7 @@ function updateAliens(dt) {
     }
 
     alienMoveTimer += dt;
-    const moveInterval = Math.max(0.04, 0.85 - (aliveAliens.length / 60) - (level * 0.03));
+    const moveInterval = Math.max(0.05, 0.92 - (aliveAliens.length / 70) - (level * 0.015));
 
     if (alienMoveTimer >= moveInterval) {
         alienMoveTimer = 0;
@@ -732,6 +860,7 @@ function updateAliens(dt) {
 }
 
 function drawAliens() {
+    if (boss) { drawBoss(); return; }
     const pulse = Math.sin(Date.now() / 150) * 6 + 10;
     aliens.forEach(a => {
         if (!a.alive) return;
@@ -833,6 +962,26 @@ function checkCollisions() {
                 updateUI();
             }
         }
+
+        // Boss
+        if (boss && bullets[i]) {
+            const bossRect = { x: boss.x, y: boss.y, width: boss.width, height: boss.height };
+            if (rectsOverlap(bulletRect, bossRect)) {
+                bullets.splice(i, 1);
+                boss.hp--;
+                createExplosion(b.x, b.y, '#f80', 8);
+                if (boss.hp <= 0) {
+                    score += boss.points;
+                    createExplosion(boss.x + boss.width/2, boss.y + boss.height/2, '#f00', 40);
+                    audio.playBonus();
+                    spawnFloatingText(boss.x + boss.width/2, boss.y, `BOSS DOWN! +${boss.points}`, '#ff0');
+                    boss = null;
+                    updateUI();
+                    setTimeout(() => { if (gameState === 'playing' && !levelTransitioning) nextLevel(); }, 1000);
+                }
+                break;
+            }
+        }
     }
 
     // Bombs vs player
@@ -932,6 +1081,7 @@ function startGame() {
     ufo = null;
     ufoTimer = 0;
     ufoNextSpawn = 10 + Math.random() * 8;
+    boss = null;
     alienDirection = 1;
     alienSpeed = 30;
     alienMoveTimer = 0;
@@ -964,6 +1114,7 @@ function nextLevel() {
     }
 
     level++;
+    boss = null;
     bullets = [];
     bombs = [];
     powerUps = [];
