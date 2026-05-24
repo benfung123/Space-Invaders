@@ -161,36 +161,45 @@ let upgrades = {
     fireRateBonus: 0
 };
 
+function scaleCost(base) {
+    return Math.floor(base * (1 + (level - 1) * 0.25));
+}
+
+function getFireRateCooldown() {
+    const b = upgrades.fireRateBonus;
+    return 0.25 * Math.pow(0.8, Math.min(b, 3)) * Math.pow(0.9, Math.max(0, b - 3));
+}
+
 const SHOP_ITEMS = [
     {
         id: 'extraLife', name: 'Extra Life', desc: '+1 life (max 5)',
-        getCost: () => 400,
+        getCost: () => scaleCost([500, 900, 1500, 2200, 3000][lives] || 9999),
         canBuy: () => lives < 5,
         buy: () => { lives++; updateUI(); }
     },
     {
-        id: 'speed', name: 'Faster Ship', desc: '+20% move speed',
-        getCost: () => [350, 500, 700][upgrades.speedBonus] || 9999,
-        canBuy: () => upgrades.speedBonus < 3,
+        id: 'speed', name: 'Faster Ship', desc: '+20% move speed (max Lv10)',
+        getCost: () => scaleCost([400, 700, 1100, 1600, 2200, 2900, 3700, 4600, 5600, 6800][upgrades.speedBonus] || 9999),
+        canBuy: () => upgrades.speedBonus < 10,
         buy: () => { upgrades.speedBonus++; player.speed = 300 * (1 + upgrades.speedBonus * 0.2); }
     },
     {
-        id: 'bunker', name: 'Wider Bunkers', desc: '+1 brick row per bunker',
-        getCost: () => [300, 450][upgrades.bunkerBonus] || 9999,
-        canBuy: () => upgrades.bunkerBonus < 2,
+        id: 'bunker', name: 'Wider Bunkers', desc: '+1 brick row per bunker (max Lv10)',
+        getCost: () => scaleCost([350, 600, 950, 1400, 1900, 2500, 3200, 4000, 4900, 5900][upgrades.bunkerBonus] || 9999),
+        canBuy: () => upgrades.bunkerBonus < 10,
         buy: () => { upgrades.bunkerBonus++; createBunkers(); }
     },
     {
-        id: 'combo', name: 'Longer Combo', desc: '+0.5s combo window',
-        getCost: () => [250, 350, 500][upgrades.comboBonus] || 9999,
-        canBuy: () => upgrades.comboBonus < 3,
+        id: 'combo', name: 'Longer Combo', desc: '+0.5s combo window (max Lv10)',
+        getCost: () => scaleCost([300, 550, 850, 1200, 1600, 2100, 2700, 3400, 4200, 5100][upgrades.comboBonus] || 9999),
+        canBuy: () => upgrades.comboBonus < 10,
         buy: () => { upgrades.comboBonus++; }
     },
     {
-        id: 'fireRate', name: 'Quick Trigger', desc: 'Permanent +20% fire rate',
-        getCost: () => [300, 450, 600][upgrades.fireRateBonus] || 9999,
-        canBuy: () => upgrades.fireRateBonus < 3,
-        buy: () => { upgrades.fireRateBonus++; player.baseCooldown = 0.25 * Math.pow(0.8, upgrades.fireRateBonus); }
+        id: 'fireRate', name: 'Quick Trigger', desc: 'Permanent fire rate up (max Lv10)',
+        getCost: () => scaleCost([400, 750, 1200, 1700, 2300, 3000, 3800, 4700, 5700, 6800][upgrades.fireRateBonus] || 9999),
+        canBuy: () => upgrades.fireRateBonus < 10,
+        buy: () => { upgrades.fireRateBonus++; player.baseCooldown = getFireRateCooldown(); }
     }
 ];
 
@@ -691,7 +700,7 @@ const player = {
         this.shield = false;
         this.initTime = 0;
         this.speed = 300 * (1 + upgrades.speedBonus * 0.2);
-        this.baseCooldown = 0.25 * Math.pow(0.8, upgrades.fireRateBonus);
+        this.baseCooldown = getFireRateCooldown();
     },
 
     getCooldown() {
