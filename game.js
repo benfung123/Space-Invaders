@@ -149,29 +149,34 @@ let upgrades = {
 
 const SHOP_ITEMS = [
     {
-        id: 'extraLife', name: 'Extra Life', desc: '+1 life', cost: 300,
+        id: 'extraLife', name: 'Extra Life', desc: '+1 life (max 5)',
+        getCost: () => 400,
         canBuy: () => lives < 5,
-        buy: () => { lives++; }
+        buy: () => { lives++; updateUI(); }
     },
     {
-        id: 'speed', name: 'Faster Ship', desc: '+20% move speed', cost: 250,
+        id: 'speed', name: 'Faster Ship', desc: '+20% move speed',
+        getCost: () => [350, 500, 700][upgrades.speedBonus] || 9999,
         canBuy: () => upgrades.speedBonus < 3,
-        buy: () => { upgrades.speedBonus++; }
+        buy: () => { upgrades.speedBonus++; player.speed = 300 * (1 + upgrades.speedBonus * 0.2); }
     },
     {
-        id: 'bunker', name: 'Wider Bunkers', desc: '+1 brick row', cost: 200,
+        id: 'bunker', name: 'Wider Bunkers', desc: '+1 brick row per bunker',
+        getCost: () => [300, 450][upgrades.bunkerBonus] || 9999,
         canBuy: () => upgrades.bunkerBonus < 2,
-        buy: () => { upgrades.bunkerBonus++; }
+        buy: () => { upgrades.bunkerBonus++; createBunkers(); }
     },
     {
-        id: 'combo', name: 'Longer Combo', desc: '+0.5s combo window', cost: 150,
+        id: 'combo', name: 'Longer Combo', desc: '+0.5s combo window',
+        getCost: () => [250, 350, 500][upgrades.comboBonus] || 9999,
         canBuy: () => upgrades.comboBonus < 3,
         buy: () => { upgrades.comboBonus++; }
     },
     {
-        id: 'rapidStart', name: 'Rapid Fire Start', desc: 'Start with 5s rapid fire', cost: 150,
-        canBuy: () => !upgrades.rapidStart,
-        buy: () => { upgrades.rapidStart = true; }
+        id: 'rapidFire', name: 'Rapid Fire', desc: 'Instant 5s rapid fire',
+        getCost: () => 300,
+        canBuy: () => !activePowerUps.RAPID_FIRE,
+        buy: () => { activePowerUps.RAPID_FIRE = 5; updatePowerUpUI(); }
     }
 ];
 
@@ -879,12 +884,7 @@ function createAliens() {
 
     alienSpeed = levelConfig.speed;
 
-    // Apply rapid start upgrade
-    if (upgrades.rapidStart) {
-        activePowerUps.RAPID_FIRE = 5;
-        upgrades.rapidStart = false;
-        updatePowerUpUI();
-    }
+    // (removed rapid start — now purchased as instant rapid fire in shop)
 }
 
 function updateAliens(dt) {
@@ -1224,6 +1224,10 @@ function togglePause() {
 }
 
 document.getElementById('resumeBtn').addEventListener('click', togglePause);
+document.getElementById('pauseShopBtn').addEventListener('click', () => {
+    pauseScreen.classList.add('hidden');
+    openShop(true);
+});
 document.getElementById('quitBtn').addEventListener('click', () => {
     togglePause();
     gameState = 'menu';
@@ -1235,7 +1239,9 @@ pauseBtn.addEventListener('click', togglePause);
 
 window.addEventListener('keydown', (e) => {
     if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-        if (gameState === 'playing' || gameState === 'paused') {
+        if (gameState === 'shop') {
+            closeShop();
+        } else if (gameState === 'playing' || gameState === 'paused') {
             togglePause();
         }
     }
@@ -1252,8 +1258,9 @@ function renderShop() {
     shopScoreEl.textContent = score;
     shopGrid.innerHTML = '';
     SHOP_ITEMS.forEach(item => {
+        const cost = item.getCost();
         const can = item.canBuy();
-        const affordable = score >= item.cost;
+        const affordable = score >= cost;
         const el = document.createElement('div');
         el.className = 'shop-item' + (can && affordable ? ' affordable' : '') + (!can ? ' maxed' : '');
         el.innerHTML = `
@@ -1261,13 +1268,13 @@ function renderShop() {
                 <div class="name">${item.name}</div>
                 <div class="desc">${item.desc}</div>
             </div>
-            <div class="cost">${item.cost}</div>
+            <div class="cost">${cost}</div>
             <button ${!can || !affordable ? 'disabled' : ''}>${!can ? 'MAXED' : 'BUY'}</button>
         `;
         const btn = el.querySelector('button');
         if (can && affordable) {
             btn.addEventListener('click', () => {
-                score -= item.cost;
+                score -= cost;
                 item.buy();
                 audio.playPowerUp();
                 updateUI();
@@ -1278,15 +1285,30 @@ function renderShop() {
     });
 }
 
-function openShop() {
+let shopFromPause = false;
+
+function openShop(fromPause = false) {
+    shopFromPause = fromPause;
     shopScreen.classList.remove('hidden');
     renderShop();
     pauseBtn.classList.remove('visible');
+    if (gameState === 'playing') {
+        gameState = 'shop';
+        audio.stopBGM();
+    }
 }
 
 function closeShop() {
     shopScreen.classList.add('hidden');
-    proceedToNextLevel();
+    if (shopFromPause) {
+        gameState = 'paused';
+        pauseScreen.classList.remove('hidden');
+    } else {
+        gameState = 'playing';
+        proceedToNextLevel();
+        lastTime = performance.now();
+        gameLoop(lastTime);
+    }
 }
 
 // ===== SCREENS & FLOW =====
@@ -1336,7 +1358,7 @@ function startGame() {
     alienSpeed = 30;
     alienMoveTimer = 0;
     alienShootTimer = 0;
-    upgrades = { speedBonus: 0, bunkerBonus: 0, comboBonus: 0, rapidStart: false };
+    upgrades = { speedBonus: 0, bunkerBonus: 0, comboBonus: 0 };
 
     player.init();
     createAliens();

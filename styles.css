@@ -254,6 +254,15 @@ canvas {
     text-shadow: 0 0 15px #ff0;
 }
 
+#pauseShopBtn {
+    background: #f0f;
+    color: #fff;
+}
+
+#pauseShopBtn:hover {
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.6);
+}
+
 #shopScreen {
     border-color: #f0f;
     box-shadow: 0 0 30px rgba(255, 0, 255, 0.3);
