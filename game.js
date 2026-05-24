@@ -87,12 +87,16 @@ class SoundManager {
         // MP3 BGM tracks
         this.bgmNormal = new Audio('Gravity_Well.mp3');
         this.bgmBoss = new Audio('Hull_Breach_Protocol.mp3');
+        this.bgmShop = new Audio('Gravity_Well_Escape.mp3');
         this.bgmNormal.loop = true;
         this.bgmBoss.loop = true;
+        this.bgmShop.loop = true;
         this.bgmNormal.volume = 0.35;
         this.bgmBoss.volume = 0.35;
+        this.bgmShop.volume = 0.35;
         this.bgmNormal.preload = 'auto';
         this.bgmBoss.preload = 'auto';
+        this.bgmShop.preload = 'auto';
         this.currentTrack = null;
     }
 
@@ -100,9 +104,10 @@ class SoundManager {
         this.muted = !this.muted;
         this.bgmNormal.muted = this.muted;
         this.bgmBoss.muted = this.muted;
+        this.bgmShop.muted = this.muted;
         if (this.muted) {
             this.stopBGM();
-        } else if (gameState === 'playing') {
+        } else if (gameState === 'playing' || gameState === 'shop') {
             this.startBGM();
         }
         return this.muted;
@@ -121,7 +126,7 @@ class SoundManager {
             console.warn('Web Audio API not supported');
         }
         // Unlock HTML5 Audio for mobile (iOS Safari / Chrome Android)
-        [this.bgmNormal, this.bgmBoss].forEach(track => {
+        [this.bgmNormal, this.bgmBoss, this.bgmShop].forEach(track => {
             track.play().then(() => track.pause()).catch(() => {});
         });
     }
@@ -162,6 +167,28 @@ class SoundManager {
         });
     }
 
+    playLevelUp() {
+        if (!this.initialized || this.muted) return;
+        // Ascending fanfare: "LEVEL UP!"
+        const notes = [523, 659, 784, 1047, 1319];
+        notes.forEach((freq, i) => {
+            setTimeout(() => {
+                this._osc('square', freq, 0.18, this.masterVolume, freq * 0.5);
+                this._osc('triangle', freq * 2, 0.15, this.masterVolume * 0.5, freq * 2);
+            }, i * 90);
+        });
+    }
+
+    startShopBGM() {
+        if (this.muted) return;
+        this.stopBGM();
+        const track = this.bgmShop;
+        track.currentTime = 0;
+        const playPromise = track.play();
+        if (playPromise) playPromise.catch(() => {});
+        this.currentTrack = track;
+    }
+
     startBGM() {
         if (this.muted) return;
         this.stopBGM();
@@ -179,6 +206,7 @@ class SoundManager {
         }
         this.bgmNormal.pause();
         this.bgmBoss.pause();
+        this.bgmShop.pause();
         this.currentTrack = null;
     }
 }
@@ -2111,7 +2139,7 @@ function openShop(fromPause = false, fromDirect = false) {
     shopBtn.classList.remove('visible');
     if (gameState === 'playing') {
         gameState = 'shop';
-        audio.stopBGM();
+        audio.startShopBGM();
     }
 }
 
@@ -2264,6 +2292,7 @@ function startGame() {
 }
 
 function proceedToNextLevel() {
+    audio.playLevelUp();
     level++;
     boss = null;
     minions = [];
