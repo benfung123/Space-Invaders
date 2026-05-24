@@ -198,7 +198,7 @@ function createBunkers() {
     const bWidth = cols * (BUNKER_BRICK_W + BUNKER_GAP) - BUNKER_GAP;
     const numBunkers = 4;
     const spacing = canvas.width / (numBunkers + 1);
-    const y = canvas.height - 68;
+    const y = canvas.height - 56;
 
     for (let b = 0; b < numBunkers; b++) {
         const bx = spacing * (b + 1) - bWidth / 2;
@@ -1453,9 +1453,9 @@ function gameLoop(timestamp) {
     drawStars();
     drawUfo();
     drawAliens();
-    drawBunkers();
     drawBombs();
     player.draw();
+    drawBunkers();
     drawWingmen();
     drawBullets();
     drawPowerUps();
