@@ -1694,8 +1694,12 @@ function updateAliens(dt) {
                 } else {
                     lives--;
                     wavePerfect = false;
-                    if (lives <= 0) {
-                        endGame();
+                    const isFinal = lives <= 0;
+                    createExplosion(player.x + player.width / 2, player.y + player.height / 2, isFinal ? '#ff0' : '#0f0', isFinal ? 45 : 25);
+                    audio.playExplosion();
+                    triggerShake(isFinal ? 14 : 10);
+                    if (isFinal) {
+                        setTimeout(() => endGame(), 700);
                         return;
                     }
                 }
@@ -1856,6 +1860,7 @@ function checkCollisions() {
                 if (!isPierce) bullets.splice(i, 1);
                 alien.hp--;
                 alien.hitFlash = 0.12;
+                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
                 triggerShake(alien.type === 'TANK' ? 3 : 2);
                 if (alien.hp <= 0) {
                     alien.alive = false;
@@ -1864,7 +1869,7 @@ function checkCollisions() {
                     const pts = alien.points * mult * (alien.diving ? 2 : 1);
                     score += pts;
                     credits += pts;
-                    createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 22 : 15);
+                    createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 30 : 20);
                     audio.playExplosion();
                     triggerShake(alien.type === 'TANK' ? 5 : 3);
                     if (alien.special) {
@@ -1960,8 +1965,12 @@ function checkCollisions() {
             } else {
                 lives--;
                 wavePerfect = false;
-                if (lives <= 0) {
-                    endGame();
+                const isFinal = lives <= 0;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, isFinal ? '#ff0' : '#0f0', isFinal ? 45 : 25);
+                audio.playExplosion();
+                triggerShake(isFinal ? 14 : 10);
+                if (isFinal) {
+                    setTimeout(() => endGame(), 700);
                     break;
                 }
             }
@@ -1984,11 +1993,12 @@ function checkCollisions() {
                 updatePowerUpUI();
             } else {
                 lives--;
-                createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#0f0', 25);
+                const isFinal = lives <= 0;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, isFinal ? '#ff0' : '#0f0', isFinal ? 45 : 25);
                 audio.playExplosion();
-                triggerShake(10);
-                if (lives <= 0) {
-                    endGame();
+                triggerShake(isFinal ? 14 : 10);
+                if (isFinal) {
+                    setTimeout(() => endGame(), 700);
                 }
             }
             updateUI();
