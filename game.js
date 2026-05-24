@@ -48,6 +48,10 @@ class SoundManager {
         } catch (e) {
             console.warn('Web Audio API not supported');
         }
+        // Unlock HTML5 Audio for mobile (iOS Safari / Chrome Android)
+        [this.bgmNormal, this.bgmBoss].forEach(track => {
+            track.play().then(() => track.pause()).catch(() => {});
+        });
     }
 
     _osc(type, freq, duration, vol, freqEnd = null) {
@@ -90,20 +94,10 @@ class SoundManager {
         if (this.muted) return;
         this.stopBGM();
         const track = boss ? this.bgmBoss : this.bgmNormal;
-        const startPlaying = () => {
-            track.currentTime = 0;
-            track.play().catch(() => {});
-            this.currentTrack = track;
-        };
-        if (track.readyState >= 2) {
-            startPlaying();
-        } else {
-            const onReady = () => {
-                startPlaying();
-                track.removeEventListener('canplaythrough', onReady);
-            };
-            track.addEventListener('canplaythrough', onReady);
-        }
+        track.currentTime = 0;
+        const playPromise = track.play();
+        if (playPromise) playPromise.catch(() => {});
+        this.currentTrack = track;
     }
 
     stopBGM() {
