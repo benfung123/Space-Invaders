@@ -10,6 +10,17 @@ class SoundManager {
         this.noteIndex = 0;
         this.notes = [110, 110, 130, 110, 98, 98, 110, 98];
         this.masterVolume = 0.1;
+        this.muted = false;
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        if (this.muted) {
+            this.stopBGM();
+        } else if (gameState === 'playing') {
+            this.startBGM();
+        }
+        return this.muted;
     }
 
     init() {
@@ -27,7 +38,7 @@ class SoundManager {
     }
 
     _osc(type, freq, duration, vol, freqEnd = null) {
-        if (!this.initialized) return;
+        if (!this.initialized || this.muted) return;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = type;
@@ -63,7 +74,7 @@ class SoundManager {
     }
 
     startBGM() {
-        if (!this.initialized || this.bgmInterval) return;
+        if (!this.initialized || this.bgmInterval || this.muted) return;
         this.bgmInterval = setInterval(() => {
             const freq = this.notes[this.noteIndex % this.notes.length];
             this.noteIndex++;
@@ -1317,6 +1328,13 @@ const gameOverScreen = document.getElementById('gameOverScreen');
 const levelUpScreen = document.getElementById('levelUpScreen');
 const finalScore = document.getElementById('finalScore');
 const finalHighScore = document.getElementById('finalHighScore');
+
+const muteBtn = document.getElementById('muteBtn');
+muteBtn.addEventListener('click', () => {
+    const muted = audio.toggleMute();
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+    muteBtn.classList.toggle('muted', muted);
+});
 
 document.getElementById('startBtn').addEventListener('click', () => {
     audio.init();

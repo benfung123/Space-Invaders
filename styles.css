@@ -66,6 +66,21 @@ body {
     text-shadow: 0 0 10px #f00;
 }
 
+.mute-btn {
+    background: none;
+    border: none;
+    color: #0f0;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+    text-shadow: 0 0 5px #0f0;
+}
+
+.mute-btn.muted {
+    color: #555;
+    text-shadow: none;
+}
+
 .powerups {
     display: flex;
     justify-content: center;
