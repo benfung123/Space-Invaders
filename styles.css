@@ -45,6 +45,11 @@ body {
     text-shadow: 0 0 8px #ff0;
 }
 
+.credits {
+    color: #ffd700;
+    text-shadow: 0 0 8px #ffd700;
+}
+
 .level {
     color: #0ff;
     text-shadow: 0 0 8px #0ff;

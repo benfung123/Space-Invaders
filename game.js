@@ -103,6 +103,9 @@ let wavePerfect = true;
 let animationId;
 let lastTime = 0;
 
+// ===== ECONOMY =====
+let credits = 0;
+
 // ===== SCREEN SHAKE =====
 let screenShake = 0;
 
@@ -1282,6 +1285,7 @@ function checkCollisions() {
                     const mult = Math.min(comboCount, COMBO_MAX);
                     const pts = alien.points * mult * (alien.diving ? 2 : 1);
                     score += pts;
+                    credits += pts;
                     createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 22 : 15);
                     audio.playExplosion();
                     triggerShake(alien.type === 'TANK' ? 5 : 3);
@@ -1302,6 +1306,7 @@ function checkCollisions() {
             if (rectsOverlap(bulletRect, ufoRect)) {
                 bullets.splice(i, 1);
                 score += ufo.points;
+                credits += ufo.points;
                 createExplosion(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#f0f', 22);
                 audio.playBonus();
                 triggerShake(4);
@@ -1322,6 +1327,7 @@ function checkCollisions() {
                 triggerShake(3);
                 if (boss.hp <= 0) {
                     score += boss.points;
+                    credits += boss.points;
                     createExplosion(boss.x + boss.width/2, boss.y + boss.height/2, '#f00', 40);
                     audio.playBonus();
                     spawnFloatingText(boss.x + boss.width/2, boss.y, `BOSS DOWN! +${boss.points}`, '#ff0');
@@ -1376,7 +1382,7 @@ function checkCollisions() {
 // ===== UI =====
 function updateUI() {
     document.getElementById('score').textContent = score;
-    document.getElementById('lives').textContent = lives;
+    document.getElementById('credits').textContent = credits;
     document.getElementById('level').textContent = level;
     document.getElementById('highScore').textContent = highScore;
 
@@ -1444,12 +1450,12 @@ const shopScoreEl = document.getElementById('shopScore');
 document.getElementById('shopContinueBtn').addEventListener('click', closeShop);
 
 function renderShop() {
-    shopScoreEl.textContent = score;
+    shopScoreEl.textContent = credits;
     shopGrid.innerHTML = '';
     SHOP_ITEMS.forEach(item => {
         const cost = item.getCost();
         const can = item.canBuy();
-        const affordable = score >= cost;
+        const affordable = credits >= cost;
         const el = document.createElement('div');
         el.className = 'shop-item' + (can && affordable ? ' affordable' : '') + (!can ? ' maxed' : '');
         el.innerHTML = `
@@ -1463,7 +1469,7 @@ function renderShop() {
         const btn = el.querySelector('button');
         if (can && affordable) {
             btn.addEventListener('click', () => {
-                score -= cost;
+                credits -= cost;
                 item.buy();
                 audio.playPowerUp();
                 updateUI();
@@ -1532,6 +1538,7 @@ window.addEventListener('keydown', (e) => {
 function startGame() {
     gameState = 'playing';
     score = 0;
+    credits = 0;
     lives = 3;
     level = 1;
     levelTransitioning = false;
@@ -1616,6 +1623,7 @@ function nextLevel() {
     // Wave perfect bonus
     if (wavePerfect) {
         score += 200;
+        credits += 200;
         spawnFloatingText(canvas.width / 2, canvas.height / 2, 'PERFECT WAVE! +200', '#ff0');
         audio.playBonus();
     }
@@ -1653,6 +1661,71 @@ function endGame() {
 }
 
 // ===== MAIN LOOP =====
+function drawLives() {
+    const heartSize = 18;
+    const gap = 6;
+    const startX = 12;
+    const startY = 12;
+    for (let i = 0; i < lives; i++) {
+        const x = startX + i * (heartSize + gap);
+        const y = startY;
+        ctx.fillStyle = '#f00';
+        ctx.shadowColor = '#f00';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        const topCurveHeight = heartSize * 0.3;
+        ctx.moveTo(x + heartSize / 2, y + topCurveHeight);
+        ctx.bezierCurveTo(x + heartSize / 2, y, x, y, x, y + topCurveHeight);
+        ctx.bezierCurveTo(x, y + (heartSize + topCurveHeight) / 2, x + heartSize / 2, y + heartSize * 0.85, x + heartSize / 2, y + heartSize);
+        ctx.bezierCurveTo(x + heartSize / 2, y + heartSize * 0.85, x + heartSize, y + (heartSize + topCurveHeight) / 2, x + heartSize, y + topCurveHeight);
+        ctx.bezierCurveTo(x + heartSize, y, x + heartSize / 2, y, x + heartSize / 2, y + topCurveHeight);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+function drawShipStatus() {
+    const panelX = 10;
+    const panelY = canvas.height - 50;
+    const lineHeight = 16;
+    let y = panelY;
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = 'bold 11px monospace';
+
+    // Active power-ups
+    for (let type in activePowerUps) {
+        const p = POWERUP_TYPES[type];
+        const timeLeft = activePowerUps[type];
+        let label = p.label.split(' ')[0]; // icon only
+        let text = timeLeft === -1 ? `${label} ON` : `${label} ${Math.ceil(timeLeft)}s`;
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.fillText(text, panelX, y);
+        ctx.shadowBlur = 0;
+        y -= lineHeight;
+    }
+
+    // Permanent upgrades
+    const upgradesList = [];
+    if (upgrades.speedBonus > 0) upgradesList.push({ icon: '⚡', val: upgrades.speedBonus });
+    if (upgrades.fireRateBonus > 0) upgradesList.push({ icon: '🔫', val: upgrades.fireRateBonus });
+    if (upgrades.bunkerBonus > 0) upgradesList.push({ icon: '🛡', val: upgrades.bunkerBonus });
+    if (upgrades.comboBonus > 0) upgradesList.push({ icon: '✦', val: upgrades.comboBonus });
+
+    for (let u of upgradesList) {
+        const text = `${u.icon} Lv${u.val}`;
+        ctx.fillStyle = '#0ff';
+        ctx.shadowColor = '#0ff';
+        ctx.shadowBlur = 6;
+        ctx.fillText(text, panelX, y);
+        ctx.shadowBlur = 0;
+        y -= lineHeight;
+    }
+}
+
 function gameLoop(timestamp) {
     if (gameState !== 'playing') return;
 
@@ -1679,6 +1752,7 @@ function gameLoop(timestamp) {
     applyShake();
 
     drawStars();
+    drawLives();
     drawUfo();
     drawAliens();
     drawBunkers();
@@ -1689,6 +1763,7 @@ function gameLoop(timestamp) {
     drawPowerUps();
     drawParticles();
     drawFloatingTexts();
+    drawShipStatus();
 
     decayShake();
 
