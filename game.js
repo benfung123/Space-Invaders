@@ -598,63 +598,171 @@ function drawUfo() {
 // ===== BOSS SYSTEM =====
 let boss = null;
 let bossDefeated = false;
+let minions = [];
 
-function getBossHp(level) {
-    return 5 + (level - 3) * 3;
+function getBossType(level) {
+    const types = ['DESTROYER', 'CARRIER', 'ARTILLERY'];
+    return types[Math.floor((level - 3) / 3) % 3];
+}
+
+function getBossHp(level, type) {
+    const base = 5 + (level - 3) * 3;
+    const mult = type === 'DESTROYER' ? 1.5 : type === 'CARRIER' ? 0.7 : 1.0;
+    return Math.floor(base * mult);
 }
 
 function spawnBoss() {
-    const hp = getBossHp(level);
-    boss = {
+    const type = getBossType(level);
+    const hp = getBossHp(level, type);
+    const base = {
         x: canvas.width / 2 - 70,
         y: 35,
         width: 140,
         height: 70,
-        speed: 45 + (level - 3) * 3,
-        direction: 1,
+        type: type,
         hp: hp,
         maxHp: hp,
-        shootTimer: 0,
-        shootInterval: Math.max(0.35, 1.4 - (level - 3) * 0.08),
-        moveTimer: 0,
         points: 300 + level * 80
     };
+    if (type === 'DESTROYER') {
+        boss = {
+            ...base,
+            speed: 45 + (level - 3) * 3,
+            direction: 1,
+            shootTimer: 0,
+            shootInterval: Math.max(0.35, 1.4 - (level - 3) * 0.08),
+            moveTimer: 0,
+            phase: 'MOVE',
+            phaseTimer: 0,
+            laserHitPlayer: false
+        };
+    } else if (type === 'CARRIER') {
+        boss = {
+            ...base,
+            speed: 30,
+            direction: 1,
+            spawnTimer: 0,
+            spawnInterval: Math.max(1.2, 2.0 - (level - 3) * 0.06),
+            moveTimer: 0
+        };
+    } else {
+        boss = {
+            ...base,
+            shootTimer: 0,
+            shootInterval: Math.max(0.4, 0.9 - (level - 3) * 0.04),
+            burstTimer: 0,
+            burstInterval: Math.max(2.5, 4.0 - (level - 3) * 0.1),
+            jitterOffset: 0,
+            jitterTimer: 0
+        };
+    }
 }
 
-function updateBoss(dt) {
-    if (!boss) return;
-    boss.moveTimer += dt;
-    if (boss.moveTimer >= 0.4) {
-        boss.moveTimer = 0;
-        boss.x += boss.direction * boss.speed * 0.4;
-        if (boss.x <= 10) { boss.direction = 1; boss.x = 10; }
-        if (boss.x + boss.width >= canvas.width - 10) { boss.direction = -1; boss.x = canvas.width - boss.width - 10; }
-    }
-    boss.shootTimer += dt;
-    if (boss.shootTimer >= boss.shootInterval) {
-        boss.shootTimer = 0;
-        const spread = Math.min(4, 1 + Math.floor((level - 3) / 2));
-        for (let s = -spread; s <= spread; s++) {
-            bombs.push({
-                x: boss.x + boss.width / 2 + s * 18,
-                y: boss.y + boss.height,
-                width: 5,
-                height: 10,
-                speed: 160 + Math.random() * 50,
-                trail: []
-            });
+// ===== MINION SYSTEM =====
+function spawnMinion(x, y) {
+    minions.push({
+        x: x, y: y,
+        width: 20, height: 15,
+        speed: 140 + level * 10,
+        color: '#0f0',
+        hp: 1,
+        alive: true,
+        points: 15
+    });
+}
+
+function updateMinions(dt) {
+    for (let i = minions.length - 1; i >= 0; i--) {
+        const m = minions[i];
+        if (!m.alive) { minions.splice(i, 1); continue; }
+        m.y += m.speed * dt;
+        m.x += (player.x - m.x) * 1.2 * dt;
+        if (m.y > canvas.height + 20) {
+            m.alive = false;
         }
     }
-    if (boss.y + boss.height >= player.y) {
-        lives = 0;
-        wavePerfect = false;
-        updateUI();
-        endGame();
+}
+
+function drawMinions() {
+    minions.forEach(m => {
+        if (!m.alive) return;
+        ctx.fillStyle = m.color;
+        ctx.shadowColor = m.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(m.x + m.width / 2, m.y + m.height);
+        ctx.lineTo(m.x + m.width, m.y);
+        ctx.lineTo(m.x, m.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    });
+}
+
+// ===== DESTROYER =====
+function updateBoss_DESTROYER(dt) {
+    const b = boss;
+    b.phaseTimer += dt;
+
+    if (b.phase === 'MOVE') {
+        b.moveTimer += dt;
+        if (b.moveTimer >= 0.4) {
+            b.moveTimer = 0;
+            b.x += b.direction * b.speed * 0.4;
+            if (b.x <= 10) { b.direction = 1; b.x = 10; }
+            if (b.x + b.width >= canvas.width - 10) { b.direction = -1; b.x = canvas.width - b.width - 10; }
+        }
+        b.shootTimer += dt;
+        if (b.shootTimer >= b.shootInterval) {
+            b.shootTimer = 0;
+            const spread = Math.min(4, 1 + Math.floor((level - 3) / 2));
+            for (let s = -spread; s <= spread; s++) {
+                bombs.push({
+                    x: b.x + b.width / 2 + s * 18,
+                    y: b.y + b.height,
+                    width: 5, height: 10,
+                    speed: 160 + Math.random() * 50,
+                    trail: []
+                });
+            }
+        }
+        if (b.phaseTimer >= 4.0) {
+            b.phase = 'CHARGE';
+            b.phaseTimer = 0;
+        }
+    } else if (b.phase === 'CHARGE') {
+        if (b.phaseTimer >= 1.2) {
+            b.phase = 'LASER';
+            b.phaseTimer = 0;
+            b.laserHitPlayer = false;
+        }
+    } else if (b.phase === 'LASER') {
+        const laserY = b.y + b.height * 0.72;
+        const laserH = 12;
+        if (!b.laserHitPlayer && player.y + player.height >= laserY && player.y <= laserY + laserH) {
+            b.laserHitPlayer = true;
+            if (player.shield) {
+                delete activePowerUps.SHIELD;
+                player.shield = false;
+                updatePowerUpUI();
+            } else {
+                lives--;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#f00', 25);
+                audio.playExplosion();
+                triggerShake(10);
+                if (lives <= 0) endGame();
+            }
+            updateUI();
+        }
+        if (b.phaseTimer >= 1.5) {
+            b.phase = 'MOVE';
+            b.phaseTimer = 0;
+            b.laserHitPlayer = false;
+        }
     }
 }
 
-function drawBoss() {
-    if (!boss) return;
+function drawBoss_DESTROYER() {
     const x = boss.x, y = boss.y, w = boss.width, h = boss.height;
     ctx.fillStyle = '#f00';
     ctx.shadowColor = '#f80';
@@ -669,11 +777,171 @@ function drawBoss() {
     ctx.fillStyle = '#f80';
     ctx.fillRect(x, y + h * 0.55, w * 0.12, h * 0.3);
     ctx.fillRect(x + w * 0.88, y + h * 0.55, w * 0.12, h * 0.3);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(x + w * 0.42, y + h * 0.68, w * 0.16, h * 0.15);
     ctx.shadowBlur = 0;
+
+    if (boss.phase === 'CHARGE') {
+        const alpha = 0.3 + Math.sin(Date.now() / 60) * 0.25;
+        ctx.strokeStyle = `rgba(255, 255, 0, ${Math.max(0.1, alpha)})`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(0, y + h * 0.75);
+        ctx.lineTo(canvas.width, y + h * 0.75);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    } else if (boss.phase === 'LASER') {
+        ctx.fillStyle = 'rgba(255, 50, 0, 0.7)';
+        ctx.shadowColor = '#f80';
+        ctx.shadowBlur = 25;
+        ctx.fillRect(0, y + h * 0.72, canvas.width, 12);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, y + h * 0.74, canvas.width, 4);
+        ctx.shadowBlur = 0;
+    }
+}
+
+// ===== CARRIER =====
+function updateBoss_CARRIER(dt) {
+    const b = boss;
+    b.moveTimer += dt;
+    if (b.moveTimer >= 0.5) {
+        b.moveTimer = 0;
+        b.x += b.direction * b.speed * 0.5;
+        if (b.x <= 10) { b.direction = 1; b.x = 10; }
+        if (b.x + b.width >= canvas.width - 10) { b.direction = -1; b.x = canvas.width - b.width - 10; }
+    }
+    b.spawnTimer += dt;
+    if (b.spawnTimer >= b.spawnInterval) {
+        b.spawnTimer = 0;
+        spawnMinion(b.x + b.width * 0.15, b.y + b.height);
+        spawnMinion(b.x + b.width * 0.85, b.y + b.height);
+    }
+}
+
+function drawBoss_CARRIER() {
+    const x = boss.x, y = boss.y, w = boss.width, h = boss.height;
+    ctx.fillStyle = '#0a0';
+    ctx.shadowColor = '#0f0';
+    ctx.shadowBlur = 18;
+    ctx.fillRect(x + w * 0.05, y + h * 0.3, w * 0.9, h * 0.5);
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h * 0.35, w * 0.42, Math.PI, 0);
+    ctx.fill();
+    ctx.fillStyle = '#030';
+    ctx.fillRect(x + w * 0.15, y + h * 0.5, w * 0.18, h * 0.3);
+    ctx.fillRect(x + w * 0.67, y + h * 0.5, w * 0.18, h * 0.3);
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
+    ctx.fillRect(x + w * 0.17, y + h * 0.55, w * 0.14, h * 0.2);
+    ctx.fillRect(x + w * 0.69, y + h * 0.55, w * 0.14, h * 0.2);
+    ctx.fillStyle = '#0f0';
+    ctx.fillRect(x + w * 0.35, y + h * 0.82, w * 0.08, h * 0.12);
+    ctx.fillRect(x + w * 0.57, y + h * 0.82, w * 0.08, h * 0.12);
+    ctx.shadowBlur = 0;
+}
+
+// ===== ARTILLERY =====
+function updateBoss_ARTILLERY(dt) {
+    const b = boss;
+    b.jitterTimer += dt;
+    if (b.jitterTimer >= 0.3) {
+        b.jitterTimer = 0;
+        b.jitterOffset = (Math.random() - 0.5) * 20;
+    }
+    b.x = canvas.width / 2 - b.width / 2 + b.jitterOffset;
+
+    b.shootTimer += dt;
+    if (b.shootTimer >= b.shootInterval) {
+        b.shootTimer = 0;
+        const targetX = player.x + player.width / 2;
+        for (let offset of [-20, 20]) {
+            bombs.push({
+                x: b.x + b.width / 2 + offset,
+                y: b.y + b.height,
+                width: 5, height: 10,
+                speed: 140 + Math.random() * 40,
+                dx: (targetX - (b.x + b.width / 2 + offset)) * 0.4,
+                trail: []
+            });
+        }
+    }
+
+    b.burstTimer += dt;
+    if (b.burstTimer >= b.burstInterval) {
+        b.burstTimer = 0;
+        const count = 10;
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 / count) * i + Math.PI * 0.1;
+            bombs.push({
+                x: b.x + b.width / 2,
+                y: b.y + b.height * 0.6,
+                width: 4, height: 9,
+                speed: 0,
+                dx: Math.cos(angle) * 130,
+                dy: Math.sin(angle) * 130,
+                trail: []
+            });
+        }
+    }
+}
+
+function drawBoss_ARTILLERY() {
+    const x = boss.x, y = boss.y, w = boss.width, h = boss.height;
+    ctx.fillStyle = '#80a';
+    ctx.shadowColor = '#f0f';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h * 0.6, w * 0.45, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillRect(x + w * 0.2, y + h * 0.15, w * 0.6, h * 0.45);
+    ctx.fillStyle = '#f0f';
+    const turretW = w * 0.1;
+    const turretH = h * 0.25;
+    const turretY = y + h * 0.05;
+    ctx.fillRect(x + w * 0.25, turretY, turretW, turretH);
+    ctx.fillRect(x + w * 0.65, turretY, turretW, turretH);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h * 0.35, w * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f0f';
+    ctx.beginPath();
+    ctx.arc(x + w / 2, y + h * 0.35, w * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+// ===== DISPATCHERS =====
+function updateBoss(dt) {
+    if (!boss) return;
+    if (boss.type === 'DESTROYER') updateBoss_DESTROYER(dt);
+    else if (boss.type === 'CARRIER') updateBoss_CARRIER(dt);
+    else updateBoss_ARTILLERY(dt);
+
+    if (boss && boss.y + boss.height >= player.y) {
+        lives = 0;
+        wavePerfect = false;
+        updateUI();
+        endGame();
+    }
+}
+
+function drawBoss() {
+    if (!boss) return;
+    drawBossHpBar();
+    if (boss.type === 'DESTROYER') drawBoss_DESTROYER();
+    else if (boss.type === 'CARRIER') drawBoss_CARRIER();
+    else drawBoss_ARTILLERY();
+}
+
+function drawBossHpBar() {
+    if (!boss) return;
+    const x = boss.x, w = boss.width;
     const barW = w * 0.7;
     const barH = 7;
     const barX = x + w * 0.15;
-    const barY = y - 14;
+    const barY = boss.y - 14;
     ctx.fillStyle = '#222';
     ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = boss.hp > boss.maxHp * 0.4 ? '#0f0' : '#f00';
@@ -681,6 +949,13 @@ function drawBoss() {
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barW, barH);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(boss.type, x + w / 2, barY - 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
 }
 
 // ===== PLAYER =====
@@ -828,7 +1103,9 @@ let bombs = [];
 
 function updateBombs(dt) {
     for (let i = bombs.length - 1; i >= 0; i--) {
-        bombs[i].y += bombs[i].speed * dt;
+        const b = bombs[i];
+        b.y += (b.speed + (b.dy || 0)) * dt;
+        b.x += (b.dx || 0) * dt;
 
         // Check bunker collision (enemy bombs destroy bunkers)
         for (let brick of bunkers) {
@@ -843,7 +1120,7 @@ function updateBombs(dt) {
             }
         }
 
-        if (bombs[i] && bombs[i].y > canvas.height) {
+        if (bombs[i] && (bombs[i].y > canvas.height || bombs[i].x < -50 || bombs[i].x > canvas.width + 50)) {
             bombs.splice(i, 1);
         }
     }
@@ -1024,8 +1301,7 @@ function createAliens() {
 function updateAliens(dt) {
     if (boss) {
         updateBoss(dt);
-        return;
-    }
+    } else {
     const aliveAliens = aliens.filter(a => a.alive);
     if (aliveAliens.length === 0 && !levelTransitioning) {
         nextLevel();
@@ -1153,7 +1429,9 @@ function updateAliens(dt) {
 }
 
 function drawAliens() {
-    if (boss) { drawBoss(); return; }
+    if (boss) {
+        drawBoss();
+    } else {
     const pulse = Math.sin(Date.now() / 150) * 6 + 10;
     aliens.forEach(a => {
         if (!a.alive) return;
@@ -1232,6 +1510,7 @@ function drawAliens() {
 
         ctx.shadowBlur = 0;
     });
+    }
 }
 
 // ===== PARTICLES =====
@@ -1327,6 +1606,27 @@ function checkCollisions() {
             }
         }
 
+        // Minions
+        for (let m of minions) {
+            if (!m.alive || !bullets[i]) continue;
+            const mRect = { x: m.x, y: m.y, width: m.width, height: m.height };
+            if (rectsOverlap(bulletRect, mRect)) {
+                bullets.splice(i, 1);
+                m.alive = false;
+                addComboKill();
+                const mult = Math.min(comboCount, COMBO_MAX);
+                const pts = m.points * mult;
+                score += pts;
+                credits += pts;
+                createExplosion(m.x + m.width / 2, m.y + m.height / 2, m.color, 10);
+                audio.playExplosion();
+                triggerShake(2);
+                spawnFloatingText(m.x + m.width / 2, m.y, `+${pts}`, m.color);
+                updateUI();
+                break;
+            }
+        }
+
         // Boss
         if (boss && bullets[i]) {
             const bossRect = { x: boss.x, y: boss.y, width: boss.width, height: boss.height };
@@ -1340,13 +1640,38 @@ function checkCollisions() {
                     credits += boss.points;
                     createExplosion(boss.x + boss.width/2, boss.y + boss.height/2, '#f00', 40);
                     audio.playBonus();
-                    spawnFloatingText(boss.x + boss.width/2, boss.y, `BOSS DOWN! +${boss.points}`, '#ff0');
+                    const typeLabel = boss.type === 'DESTROYER' ? 'DESTROYER' : boss.type === 'CARRIER' ? 'CARRIER' : 'ARTILLERY';
+                    spawnFloatingText(boss.x + boss.width/2, boss.y, `${typeLabel} DOWN! +${boss.points}`, '#ff0');
                     boss = null;
                     updateUI();
                     setTimeout(() => { if (gameState === 'playing' && !levelTransitioning) nextLevel(); }, 1000);
                 }
                 break;
             }
+        }
+    }
+
+    // Minions vs player
+    for (let m of minions) {
+        if (!m.alive) continue;
+        if (rectsOverlap(m, player)) {
+            m.alive = false;
+            createExplosion(m.x + m.width/2, m.y + m.height/2, '#f00', 15);
+            audio.playExplosion();
+            triggerShake(8);
+            if (player.shield) {
+                delete activePowerUps.SHIELD;
+                player.shield = false;
+                updatePowerUpUI();
+            } else {
+                lives--;
+                wavePerfect = false;
+                if (lives <= 0) {
+                    endGame();
+                    break;
+                }
+            }
+            updateUI();
         }
     }
 
@@ -1567,6 +1892,7 @@ function startGame() {
     ufoTimer = 0;
     ufoNextSpawn = 10 + Math.random() * 8;
     boss = null;
+    minions = [];
     alienDirection = 1;
     alienSpeed = 30;
     alienMoveTimer = 0;
@@ -1597,6 +1923,7 @@ function startGame() {
 function proceedToNextLevel() {
     level++;
     boss = null;
+    minions = [];
     bullets = [];
     bombs = [];
     powerUps = [];
@@ -1750,6 +2077,7 @@ function gameLoop(timestamp) {
     updateWingmen(dt);
     updateBullets(dt);
     updateAliens(dt);
+    updateMinions(dt);
     updateBombs(dt);
     updateUfo(dt);
     updatePowerUps(dt);
@@ -1767,6 +2095,7 @@ function gameLoop(timestamp) {
     drawAliens();
     drawBunkers();
     drawBombs();
+    drawMinions();
     player.draw();
     drawWingmen();
     drawBullets();
