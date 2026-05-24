@@ -506,7 +506,8 @@ function updateWingmen(dt) {
                 height: 10,
                 speed: 450,
                 color: '#0f0',
-                dx: 0
+                dx: 0,
+                trail: []
             });
             audio.playShoot();
             w.cooldown = w.maxCooldown;
