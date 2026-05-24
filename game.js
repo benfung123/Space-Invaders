@@ -144,7 +144,7 @@ let upgrades = {
     speedBonus: 0,
     bunkerBonus: 0,
     comboBonus: 0,
-    rapidStart: false
+    fireRateBonus: 0
 };
 
 const SHOP_ITEMS = [
@@ -173,10 +173,10 @@ const SHOP_ITEMS = [
         buy: () => { upgrades.comboBonus++; }
     },
     {
-        id: 'rapidFire', name: 'Rapid Fire', desc: 'Instant 5s rapid fire',
-        getCost: () => 300,
-        canBuy: () => !activePowerUps.RAPID_FIRE,
-        buy: () => { activePowerUps.RAPID_FIRE = 5; updatePowerUpUI(); }
+        id: 'fireRate', name: 'Quick Trigger', desc: 'Permanent +20% fire rate',
+        getCost: () => [300, 450, 600][upgrades.fireRateBonus] || 9999,
+        canBuy: () => upgrades.fireRateBonus < 3,
+        buy: () => { upgrades.fireRateBonus++; player.baseCooldown = 0.25 * Math.pow(0.8, upgrades.fireRateBonus); }
     }
 ];
 
@@ -189,16 +189,15 @@ const BUNKER_GAP = 2;
 function createBunkers() {
     bunkers = [];
     const cols = 6;
-    let rows = 4 + upgrades.bunkerBonus;
     const pattern = [
         [1,1,1,1,1,1],
         [1,1,1,1,1,1],
         [1,1,0,0,1,1],
         [1,0,0,0,0,1]
     ];
-    // Extra rows from upgrade are solid
+    // Extra rows grow DOWNWARD (away from player), keeping top fixed
     for (let e = 0; e < upgrades.bunkerBonus; e++) {
-        pattern.unshift([1,1,1,1,1,1]);
+        pattern.push([1,1,1,1,1,1]);
     }
     const bWidth = cols * (BUNKER_BRICK_W + BUNKER_GAP) - BUNKER_GAP;
     const numBunkers = 4;
@@ -661,6 +660,7 @@ const player = {
         this.shield = false;
         this.initTime = 0;
         this.speed = 300 * (1 + upgrades.speedBonus * 0.2);
+        this.baseCooldown = 0.25 * Math.pow(0.8, upgrades.fireRateBonus);
     },
 
     getCooldown() {
@@ -1358,7 +1358,7 @@ function startGame() {
     alienSpeed = 30;
     alienMoveTimer = 0;
     alienShootTimer = 0;
-    upgrades = { speedBonus: 0, bunkerBonus: 0, comboBonus: 0 };
+    upgrades = { speedBonus: 0, bunkerBonus: 0, comboBonus: 0, fireRateBonus: 0 };
 
     player.init();
     createAliens();
