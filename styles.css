@@ -134,10 +134,10 @@ body {
     display: inline-block;
 }
 
-.pause-btn {
+.pause-btn,
+.shop-btn {
     position: absolute;
     top: 6px;
-    right: 6px;
     width: 32px;
     height: 32px;
     font-size: 16px;
@@ -150,7 +150,18 @@ body {
     display: none;
 }
 
-.pause-btn.visible {
+.pause-btn {
+    right: 6px;
+}
+
+.shop-btn {
+    right: 44px;
+    border-color: #f0f;
+    color: #f0f;
+}
+
+.pause-btn.visible,
+.shop-btn.visible {
     display: block;
 }
 

@@ -1767,6 +1767,7 @@ function updateUI() {
 // ===== PAUSE SYSTEM =====
 const pauseScreen = document.getElementById('pauseScreen');
 const pauseBtn = document.getElementById('pauseBtn');
+const shopBtn = document.getElementById('shopBtn');
 
 function togglePause() {
     if (gameState === 'playing') {
@@ -1774,7 +1775,7 @@ function togglePause() {
         screenShake = 0;
         audio.stopBGM();
         pauseScreen.classList.remove('hidden');
-        pauseBtn.classList.remove('visible');
+        shopBtn.classList.remove('visible');
     } else if (gameState === 'paused') {
         gameState = 'playing';
         pauseScreen.classList.add('hidden');
@@ -1782,6 +1783,7 @@ function togglePause() {
         lastTime = performance.now();
         gameLoop(lastTime);
         pauseBtn.classList.add('visible');
+        shopBtn.classList.add('visible');
     }
 }
 
@@ -1789,6 +1791,11 @@ document.getElementById('resumeBtn').addEventListener('click', togglePause);
 document.getElementById('pauseShopBtn').addEventListener('click', () => {
     pauseScreen.classList.add('hidden');
     openShop(true);
+});
+shopBtn.addEventListener('click', () => {
+    if (gameState === 'playing') {
+        openShop(false, true);
+    }
 });
 document.getElementById('quitBtn').addEventListener('click', () => {
     togglePause();
@@ -1848,12 +1855,15 @@ function renderShop() {
 }
 
 let shopFromPause = false;
+let shopFromDirect = false;
 
-function openShop(fromPause = false) {
+function openShop(fromPause = false, fromDirect = false) {
     shopFromPause = fromPause;
+    shopFromDirect = fromDirect;
     shopScreen.classList.remove('hidden');
     renderShop();
     pauseBtn.classList.remove('visible');
+    shopBtn.classList.remove('visible');
     if (gameState === 'playing') {
         gameState = 'shop';
         audio.stopBGM();
@@ -1865,6 +1875,13 @@ function closeShop() {
     if (shopFromPause) {
         gameState = 'paused';
         pauseScreen.classList.remove('hidden');
+    } else if (shopFromDirect) {
+        gameState = 'playing';
+        lastTime = performance.now();
+        gameLoop(lastTime);
+        audio.startBGM();
+        pauseBtn.classList.add('visible');
+        shopBtn.classList.add('visible');
     } else {
         gameState = 'playing';
         proceedToNextLevel();
@@ -1946,6 +1963,7 @@ function startGame() {
     nameEntryScreen.classList.add('hidden');
     leaderboardScreen.classList.add('hidden');
     pauseBtn.classList.add('visible');
+    shopBtn.classList.add('visible');
 
     audio.startBGM();
     lastTime = performance.now();
@@ -1980,6 +1998,7 @@ function proceedToNextLevel() {
         levelTransitioning = false;
         if (gameState === 'playing') {
             pauseBtn.classList.add('visible');
+            shopBtn.classList.add('visible');
         }
     }, 1500);
 
@@ -2016,6 +2035,7 @@ function endGame() {
     finalScore.textContent = score;
     finalHighScore.textContent = highScore;
     pauseBtn.classList.remove('visible');
+    shopBtn.classList.remove('visible');
     audio.stopBGM();
 
     const rank = getLeaderboardRank(score);
