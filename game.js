@@ -280,11 +280,13 @@ function drawStars() {
 const POWERUP_TYPES = {
     RAPID_FIRE: { color: '#f0f', glow: '#f0f', label: '⚡ RAPID', duration: 8 },
     SHIELD:     { color: '#08f', glow: '#08f', label: '🛡️ SHIELD', duration: -1 },
-    MULTI_SHOT: { color: '#ff0', glow: '#ff0', label: '🔱 MULTI', duration: 8 }
+    MULTI_SHOT: { color: '#ff0', glow: '#ff0', label: '🔱 MULTI', duration: 8 },
+    WINGMAN: { color: '#0f0', glow: '#0f0', label: '✈️ WING', duration: 10 }
 };
 
 let powerUps = [];
 let activePowerUps = {};
+let wingmen = [];
 
 function spawnPowerUp(x, y) {
     const types = Object.keys(POWERUP_TYPES);
@@ -310,6 +312,7 @@ function updatePowerUps(dt) {
             activePowerUps[type] -= dt;
             if (activePowerUps[type] <= 0) {
                 delete activePowerUps[type];
+                if (type === 'WINGMAN') wingmen = [];
             }
         }
     }
@@ -328,13 +331,14 @@ function drawPowerUps() {
         ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        let symbol = p.type === 'SHIELD' ? 'S' : p.type === 'RAPID_FIRE' ? 'R' : 'M';
+        let symbol = p.type === 'SHIELD' ? 'S' : p.type === 'RAPID_FIRE' ? 'R' : p.type === 'WINGMAN' ? 'W' : 'M';
         ctx.fillText(symbol, p.x + p.width / 2, p.y + p.height / 2 + 1);
     });
 }
 
 function applyPowerUp(type) {
     activePowerUps[type] = POWERUP_TYPES[type].duration;
+    if (type === 'WINGMAN') createWingmen();
     audio.playPowerUp();
     updatePowerUpUI();
 }
@@ -351,6 +355,61 @@ function updatePowerUpUI() {
         tag.textContent = p.duration === -1 ? p.label : `${p.label} ${Math.ceil(activePowerUps[type])}s`;
         bar.appendChild(tag);
     }
+}
+
+// ===== WINGMAN SYSTEM =====
+function createWingmen() {
+    wingmen = [
+        { x: 0, y: 0, width: 28, height: 18, color: '#0f0', side: 'left', cooldown: 0, maxCooldown: 0.35 },
+        { x: 0, y: 0, width: 28, height: 18, color: '#0f0', side: 'right', cooldown: 0, maxCooldown: 0.35 }
+    ];
+}
+
+function updateWingmen(dt) {
+    if (!activePowerUps.WINGMAN) { wingmen = []; return; }
+    if (wingmen.length === 0) createWingmen();
+    
+    wingmen.forEach(w => {
+        if (w.side === 'left') {
+            w.x = player.x - w.width - 10;
+        } else {
+            w.x = player.x + player.width + 10;
+        }
+        w.y = player.y + (player.height - w.height) / 2;
+        
+        w.cooldown -= dt;
+        if (w.cooldown <= 0) {
+            bullets.push({
+                x: w.x + w.width / 2,
+                y: w.y,
+                width: 3,
+                height: 10,
+                speed: 450,
+                color: '#0f0',
+                dx: 0
+            });
+            audio.playShoot();
+            w.cooldown = w.maxCooldown;
+        }
+    });
+}
+
+function drawWingmen() {
+    wingmen.forEach(w => {
+        ctx.fillStyle = w.color;
+        ctx.shadowColor = w.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(w.x + w.width / 2, w.y);
+        ctx.lineTo(w.x + w.width, w.y + w.height);
+        ctx.lineTo(w.x, w.y + w.height);
+        ctx.closePath();
+        ctx.fill();
+        // Engine glow
+        ctx.fillStyle = '#0af';
+        ctx.fillRect(w.x + w.width / 2 - 2, w.y + w.height, 4, 4);
+        ctx.shadowBlur = 0;
+    });
 }
 
 // ===== UFO SYSTEM =====
@@ -869,6 +928,7 @@ function startGame() {
     floatingTexts = [];
     powerUps = [];
     activePowerUps = {};
+    wingmen = [];
     ufo = null;
     ufoTimer = 0;
     ufoNextSpawn = 10 + Math.random() * 8;
@@ -956,6 +1016,7 @@ function gameLoop(timestamp) {
 
     updateStars();
     player.update(dt);
+    updateWingmen(dt);
     updateBullets(dt);
     updateAliens(dt);
     updateBombs(dt);
@@ -973,6 +1034,7 @@ function gameLoop(timestamp) {
     drawBunkers();
     drawBombs();
     player.draw();
+    drawWingmen();
     drawBullets();
     drawPowerUps();
     drawParticles();
