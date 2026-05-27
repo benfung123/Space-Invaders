@@ -9,7 +9,8 @@ const SHIP_CLASSES = {
         lives: 3, speedMult: 1.0, fireRateMult: 1.0,
         startPowerUp: null, bunkerBonus: 0,
         color: '#0f0', glow: '#0f0',
-        unlockScore: 0
+        unlockScore: 0,
+        passive: { name: 'ACE BONUS', icon: '🎯', desc: 'Every 10-kill streak triggers 2s Ace Time: bullets pierce + score ×2' }
     },
     VANGUARD: {
         key: 'VANGUARD', name: 'Vanguard', icon: '🛡️',
@@ -17,7 +18,8 @@ const SHIP_CLASSES = {
         lives: 4, speedMult: 0.9, fireRateMult: 1.0,
         startPowerUp: 'SHIELD', bunkerBonus: 0,
         color: '#08f', glow: '#08f',
-        unlockScore: 2000
+        unlockScore: 2000,
+        passive: { name: 'REGENERATIVE PLATING', icon: '♻️', desc: 'After 6s without damage, shield auto-recharges' }
     },
     SPECTRE: {
         key: 'SPECTRE', name: 'Spectre', icon: '👻',
@@ -25,7 +27,8 @@ const SHIP_CLASSES = {
         lives: 2, speedMult: 1.15, fireRateMult: 1.0,
         startPowerUp: 'MULTI_SHOT', bunkerBonus: 0,
         color: '#ff0', glow: '#ff0',
-        unlockScore: 6000
+        unlockScore: 6000,
+        passive: { name: 'PHASE SHIFT', icon: '💨', desc: 'Double-tap direction to blink 60px with 0.3s invincibility (5s cooldown)' }
     },
     TITAN: {
         key: 'TITAN', name: 'Titan', icon: '🏰',
@@ -33,7 +36,8 @@ const SHIP_CLASSES = {
         lives: 5, speedMult: 0.85, fireRateMult: 0.8,
         startPowerUp: null, bunkerBonus: 1,
         color: '#f80', glow: '#f80',
-        unlockScore: 12000
+        unlockScore: 12000,
+        passive: { name: 'SALVO', icon: '💥', desc: 'Every 6th shot fires an artillery shell that explodes in a 35px radius' }
     },
     HARBINGER: {
         key: 'HARBINGER', name: 'Harbinger', icon: '🌌',
@@ -41,7 +45,8 @@ const SHIP_CLASSES = {
         lives: 2, speedMult: 0.9, fireRateMult: 0.9,
         startPowerUp: null, bunkerBonus: 0,
         color: '#a0f', glow: '#a0f',
-        unlockScore: 999999 // Unlocked via loop progression, not score
+        unlockScore: 999999,
+        passive: { name: 'EVENT HORIZON', icon: '🌀', desc: 'Singularity orbs deal 1 DPS and pull bombs + dive bombers' }
     }
 };
 
@@ -252,6 +257,16 @@ let meteors = [];
 let singularities = [];
 let harbingerShotCounter = 0;
 let lastTime = 0;
+
+// Ship passive state
+let aceStreak = 0;
+let aceActive = false;
+let aceTimer = 0;
+let salvoCounter = 0;
+let lastDamageTime = 0;
+let phaseShiftCooldown = 0;
+let phaseShiftTimer = 0;
+let lastKeyTapTime = { left: 0, right: 0 };
 
 // ===== ECONOMY =====
 let credits = 0;
@@ -465,6 +480,16 @@ function addComboKill() {
     if (comboCount < COMBO_MAX) comboCount++;
     comboTimer = getComboWindow();
     updateUI();
+    // Interceptor: Ace Bonus streak
+    if (selectedShipKey === 'INTERCEPTOR' && !aceActive) {
+        aceStreak++;
+        if (aceStreak >= 10) {
+            aceActive = true;
+            aceTimer = 2;
+            spawnFloatingText(player.x + player.width / 2, player.y - 30, '🔥 ACE TIME!', '#ff0');
+            audio.playBonus();
+        }
+    }
 }
 
 function updateCombo(dt) {
@@ -518,6 +543,26 @@ window.addEventListener('keydown', (e) => {
         e.preventDefault();
         player.shoot();
     }
+    // Spectre: Phase Shift double-tap
+    if (gameState === 'playing' && selectedShipKey === 'SPECTRE' && phaseShiftCooldown <= 0) {
+        const now = performance.now();
+        const dir = e.key === 'ArrowLeft' || e.key === 'a' ? 'left' : e.key === 'ArrowRight' || e.key === 'd' ? 'right' : null;
+        if (dir) {
+            if (lastKeyTapTime[dir] && now - lastKeyTapTime[dir] < 300) {
+                // Double tap!
+                const dx = dir === 'left' ? -60 : 60;
+                player.x = Math.max(0, Math.min(canvas.width - player.width, player.x + dx));
+                phaseShiftCooldown = 5;
+                phaseShiftTimer = 0.3;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#ff0', 8);
+                audio.playBonus();
+                lastKeyTapTime[dir] = 0;
+            } else {
+                lastKeyTapTime[dir] = now;
+                lastKeyTapTime[dir === 'left' ? 'right' : 'left'] = 0;
+            }
+        }
+    }
 });
 
 window.addEventListener('keyup', (e) => {
@@ -530,7 +575,26 @@ const rightBtn = document.getElementById('rightBtn');
 const fireBtn = document.getElementById('fireBtn');
 
 function setupTouchBtn(btn, key) {
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); touchInput[key] = true; });
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        touchInput[key] = true;
+        // Spectre: Phase Shift double-tap on touch
+        if (gameState === 'playing' && selectedShipKey === 'SPECTRE' && phaseShiftCooldown <= 0 && (key === 'left' || key === 'right')) {
+            const now = performance.now();
+            if (lastKeyTapTime[key] && now - lastKeyTapTime[key] < 300) {
+                const dx = key === 'left' ? -60 : 60;
+                player.x = Math.max(0, Math.min(canvas.width - player.width, player.x + dx));
+                phaseShiftCooldown = 5;
+                phaseShiftTimer = 0.3;
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#ff0', 8);
+                audio.playBonus();
+                lastKeyTapTime[key] = 0;
+            } else {
+                lastKeyTapTime[key] = now;
+                lastKeyTapTime[key === 'left' ? 'right' : 'left'] = 0;
+            }
+        }
+    });
     btn.addEventListener('touchend', (e) => { e.preventDefault(); touchInput[key] = false; });
     btn.addEventListener('mousedown', (e) => { touchInput[key] = true; });
     btn.addEventListener('mouseup', (e) => { touchInput[key] = false; });
@@ -709,6 +773,86 @@ function updatePowerUpUI() {
         tag.style.color = w.color;
         tag.textContent = `${w.label} ${Math.ceil(weaponTimer)}s`;
         bar.appendChild(tag);
+    }
+}
+
+function updatePassiveHUD() {
+    const hud = document.getElementById('passiveHud');
+    if (!hud || gameState !== 'playing') {
+        if (hud) hud.innerHTML = '';
+        return;
+    }
+    hud.innerHTML = '';
+    const ship = SHIP_CLASSES[selectedShipKey];
+    if (!ship.passive) return;
+
+    // Interceptor: Ace streak counter
+    if (selectedShipKey === 'INTERCEPTOR') {
+        const tag = document.createElement('div');
+        tag.className = 'passive-tag';
+        if (aceActive) {
+            tag.style.borderColor = '#ff0';
+            tag.style.color = '#ff0';
+            tag.textContent = `🔥 ACE TIME! ${Math.ceil(aceTimer)}s`;
+        } else {
+            tag.style.borderColor = ship.color;
+            tag.style.color = ship.color;
+            tag.textContent = `${ship.passive.icon} ${aceStreak}/10`;
+        }
+        hud.appendChild(tag);
+    }
+
+    // Titan: Salvo counter
+    if (selectedShipKey === 'TITAN') {
+        const tag = document.createElement('div');
+        tag.className = 'passive-tag';
+        tag.style.borderColor = '#f80';
+        tag.style.color = '#f80';
+        tag.textContent = `💥 ${salvoCounter}/6`;
+        hud.appendChild(tag);
+    }
+
+    // Vanguard: Regen timer
+    if (selectedShipKey === 'VANGUARD') {
+        const tag = document.createElement('div');
+        tag.className = 'passive-tag';
+        if (player.shield) {
+            tag.style.borderColor = '#08f';
+            tag.style.color = '#08f';
+            tag.textContent = '🛡️ ACTIVE';
+        } else {
+            const remaining = Math.max(0, 6 - lastDamageTime);
+            tag.style.borderColor = remaining <= 2 ? '#0f0' : '#888';
+            tag.style.color = remaining <= 2 ? '#0f0' : '#888';
+            tag.textContent = `♻️ ${remaining.toFixed(1)}s`;
+        }
+        hud.appendChild(tag);
+    }
+
+    // Spectre: Phase Shift cooldown
+    if (selectedShipKey === 'SPECTRE') {
+        const tag = document.createElement('div');
+        tag.className = 'passive-tag';
+        if (phaseShiftCooldown > 0) {
+            tag.style.borderColor = '#888';
+            tag.style.color = '#888';
+            tag.textContent = `💨 ${Math.ceil(phaseShiftCooldown)}s`;
+        } else {
+            tag.style.borderColor = '#ff0';
+            tag.style.color = '#ff0';
+            tag.textContent = '💨 READY';
+        }
+        hud.appendChild(tag);
+    }
+
+    // Harbinger: Singularity indicator
+    if (selectedShipKey === 'HARBINGER') {
+        const tag = document.createElement('div');
+        tag.className = 'passive-tag';
+        tag.style.borderColor = '#a0f';
+        tag.style.color = '#a0f';
+        tag.textContent = `🌌 ${4 - (harbingerShotCounter % 4)}`;
+        hud.appendChild(tag);
     }
 }
 
@@ -1076,6 +1220,8 @@ function updateBoss_DESTROYER(dt) {
                 updatePowerUpUI();
             } else if (!playerInvincible()) {
                 b.laserHitPlayer = true;
+                aceStreak = 0;
+                lastDamageTime = 0;
                 lives--;
                 createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#f00', 25);
                 audio.playExplosion();
@@ -1352,6 +1498,15 @@ const player = {
         this.speed = 300 * ship.speedMult * (1 + upgrades.speedBonus * 0.2);
         this.baseCooldown = getFireRateCooldown() / ship.fireRateMult;
         this.color = ship.color;
+        // Reset ship passive state
+        aceStreak = 0;
+        aceActive = false;
+        aceTimer = 0;
+        salvoCounter = 0;
+        lastDamageTime = 0;
+        phaseShiftCooldown = 0;
+        phaseShiftTimer = 0;
+        lastKeyTapTime = { left: 0, right: 0 };
     },
 
     getCooldown() {
@@ -1373,25 +1528,49 @@ const player = {
             this.shoot();
         }
         this.shield = !!activePowerUps.SHIELD;
+
+        // Vanguard: regenerative plating
+        if (selectedShipKey === 'VANGUARD' && !playerInvincible()) {
+            lastDamageTime += dt;
+            if (lastDamageTime >= 6 && !this.shield) {
+                applyPowerUp('SHIELD');
+                spawnFloatingText(this.x + this.width / 2, this.y - 20, '♻️ REGEN!', '#08f');
+            }
+        }
+
+        // Ace Time decay
+        if (aceActive) {
+            aceTimer -= dt;
+            if (aceTimer <= 0) {
+                aceActive = false;
+                aceTimer = 0;
+            }
+        }
+
+        // Phase Shift timers
+        if (phaseShiftTimer > 0) phaseShiftTimer -= dt;
+        if (phaseShiftCooldown > 0) phaseShiftCooldown -= dt;
     },
 
     shoot() {
         if (this.cooldown > 0) return;
         const cx = this.x + this.width / 2;
         const cy = this.y;
+        const shipColor = SHIP_CLASSES[selectedShipKey].color;
+        const acePierce = aceActive;
         if (activeWeapon === 'SPREAD') {
             const angles = [-260, -130, 0, 130, 260];
-            angles.forEach(a => bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: WEAPON_TYPES.SPREAD.color, dx: a, trail: [] }));
+            angles.forEach(a => bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: WEAPON_TYPES.SPREAD.color, dx: a, trail: [], acePierce }));
         } else if (activeWeapon === 'PIERCE') {
-            bullets.push({ x: cx, y: cy, width: 3, height: 14, speed: 650, color: WEAPON_TYPES.PIERCE.color, dx: 0, trail: [], type: 'PIERCE' });
+            bullets.push({ x: cx, y: cy, width: 3, height: 14, speed: 650, color: WEAPON_TYPES.PIERCE.color, dx: 0, trail: [], type: 'PIERCE', acePierce });
         } else if (activeWeapon === 'HOMING') {
-            bullets.push({ x: cx, y: cy, width: 5, height: 10, speed: 420, color: WEAPON_TYPES.HOMING.color, dx: 0, trail: [], type: 'HOMING' });
+            bullets.push({ x: cx, y: cy, width: 5, height: 10, speed: 420, color: WEAPON_TYPES.HOMING.color, dx: 0, trail: [], type: 'HOMING', acePierce });
         } else if (activeWeapon === 'NUKE') {
-            bullets.push({ x: cx, y: cy, width: 5, height: 14, speed: 480, color: WEAPON_TYPES.NUKE.color, dx: 0, trail: [], type: 'NUKE' });
+            bullets.push({ x: cx, y: cy, width: 5, height: 14, speed: 480, color: WEAPON_TYPES.NUKE.color, dx: 0, trail: [], type: 'NUKE', acePierce });
         } else if (activePowerUps.MULTI_SHOT) {
-            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 0, trail: [] });
-            bullets.push({ x: cx - 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: -130, trail: [] });
-            bullets.push({ x: cx + 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 130, trail: [] });
+            bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 0, trail: [], acePierce });
+            bullets.push({ x: cx - 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: -130, trail: [], acePierce });
+            bullets.push({ x: cx + 6, y: cy, width: 4, height: 12, speed: 500, color: '#ff0', dx: 130, trail: [], acePierce });
         } else {
             if (selectedShipKey === 'HARBINGER') {
                 harbingerShotCounter++;
@@ -1399,10 +1578,19 @@ const player = {
                     harbingerShotCounter = 0;
                     singularities.push({ x: cx, y: cy, radius: 50, timer: 2.5, pullForce: 80 });
                 } else {
-                    bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: themeColor('bullet'), dx: 0, trail: [] });
+                    bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: shipColor, dx: 0, trail: [], acePierce });
+                }
+            } else if (selectedShipKey === 'TITAN') {
+                salvoCounter++;
+                if (salvoCounter >= 6) {
+                    salvoCounter = 0;
+                    bullets.push({ x: cx, y: cy, width: 6, height: 14, speed: 380, color: '#f80', dx: 0, trail: [], type: 'SALVO', acePierce });
+                    spawnFloatingText(cx, cy - 15, '💥 SALVO!', '#f80');
+                } else {
+                    bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: shipColor, dx: 0, trail: [], acePierce });
                 }
             } else {
-                bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: themeColor('bullet'), dx: 0, trail: [] });
+                bullets.push({ x: cx, y: cy, width: 4, height: 12, speed: 500, color: shipColor, dx: 0, trail: [], acePierce });
             }
         }
         audio.playShoot();
@@ -1440,7 +1628,7 @@ const player = {
 };
 
 function playerInvincible() {
-    return player.initTime < 2;
+    return player.initTime < 2 || (selectedShipKey === 'SPECTRE' && phaseShiftTimer > 0);
 }
 
 function respawnPlayer() {
@@ -1903,6 +2091,8 @@ function updateAliens(dt) {
                 audio.playHitShield();
                 updatePowerUpUI();
             } else {
+                aceStreak = 0;
+                lastDamageTime = 0;
                 lives--;
                 const isFinal = lives <= 0;
                 createExplosion(player.x + player.width / 2, player.y + player.height / 2, isFinal ? '#ff0' : '#0f0', isFinal ? 45 : 25);
@@ -2248,13 +2438,14 @@ function drawEmpOverlay() {
 }
 
 function updateSingularities(dt) {
+    const eventHorizon = selectedShipKey === 'HARBINGER';
     for (let i = singularities.length - 1; i >= 0; i--) {
         const s = singularities[i];
         s.timer -= dt;
         s.y -= 60 * dt; // Drift upward slowly
         // Pull nearby aliens
         for (let alien of aliens) {
-            if (!alien.alive || alien.diving) continue;
+            if (!alien.alive) continue;
             const ax = alien.x + alien.width / 2;
             const ay = alien.y + alien.height / 2;
             const dist = Math.hypot(ax - s.x, ay - s.y);
@@ -2262,6 +2453,54 @@ function updateSingularities(dt) {
                 const pull = s.pullForce * dt * (1 - dist / s.radius);
                 alien.x += (s.x - ax) * pull / dist;
                 alien.y += (s.y - ay) * pull / dist;
+            }
+            // Event Horizon: DOT damage to aliens inside
+            if (eventHorizon && dist < s.radius * 0.5) {
+                alien.hp -= dt; // 1 DPS
+                alien.hitFlash = 0.1;
+                if (alien.hp <= 0) {
+                    alien.alive = false;
+                    addComboKill();
+                    const mult = Math.min(comboCount, COMBO_MAX);
+                    const pts = alien.points * mult * (alien.diving ? 2 : 1);
+                    score += pts;
+                    credits += pts;
+                    createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 30 : 20);
+                    audio.playExplosion();
+                    triggerShake(alien.type === 'TANK' ? 5 : 3);
+                    if (alien.elite === 'SPLITTER') {
+                        for (let sg = -1; sg <= 1; sg += 2) {
+                            aliens.push({
+                                x: alien.x + alien.width / 2 - 4, y: alien.y + alien.height,
+                                width: 8, height: 8, color: '#f80', points: 5, alive: true, special: false,
+                                type: 'NORMAL', hp: 1, maxHp: 1, zigzag: false, zigzagPhase: 0,
+                                hitFlash: 0, diving: false, diveSpeed: 0, telegraphTimer: 0, telegraphType: null,
+                                elite: null, shieldHp: 0
+                            });
+                        }
+                    }
+                    if (alien.elite === 'CARRIER') {
+                        if (Math.random() < 0.5) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
+                        else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                    } else if (alien.special) {
+                        if (Math.random() < 0.25) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
+                        else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                    }
+                    const ftText = mult > 1 ? `+${pts} ×${mult}` : `+${pts}`;
+                    spawnFloatingText(alien.x + alien.width / 2, alien.y, ftText, alien.special ? '#fff' : alien.color);
+                    updateUI();
+                }
+            }
+        }
+        // Event Horizon: pull bombs
+        if (eventHorizon) {
+            for (let bomb of bombs) {
+                const dist = Math.hypot(bomb.x - s.x, bomb.y - s.y);
+                if (dist < s.radius && dist > 5) {
+                    const pull = s.pullForce * 0.5 * dt * (1 - dist / s.radius);
+                    bomb.x += (s.x - bomb.x) * pull / dist;
+                    bomb.y += (s.y - bomb.y) * pull / dist;
+                }
             }
         }
         if (s.timer <= 0 || s.y < -50) {
@@ -2292,6 +2531,95 @@ function drawSingularities() {
 function rectsOverlap(a, b) {
     return a.x < b.x + b.width && a.x + a.width > b.x &&
            a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function applySalvoSplash(cx, cy) {
+    const radius = 35;
+    createExplosion(cx, cy, '#f80', 10);
+    triggerShake(2);
+    // Splash damage to aliens
+    for (let alien of aliens) {
+        if (!alien.alive) continue;
+        const ax = alien.x + alien.width / 2;
+        const ay = alien.y + alien.height / 2;
+        if (Math.hypot(ax - cx, ay - cy) < radius) {
+            if (alien.shieldHp > 0) {
+                alien.shieldHp--;
+                alien.hitFlash = 0.15;
+                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, '#08f', 6);
+            } else {
+                alien.hp--;
+                alien.hitFlash = 0.12;
+                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.color, 4);
+            }
+            if (alien.hp <= 0) {
+                alien.alive = false;
+                addComboKill();
+                const mult = Math.min(comboCount, COMBO_MAX);
+                const aceMult = aceActive ? 2 : 1;
+                const pts = alien.points * mult * (alien.diving ? 2 : 1) * aceMult;
+                score += pts;
+                credits += pts;
+                createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 30 : 20);
+                audio.playExplosion();
+                triggerShake(alien.type === 'TANK' ? 5 : 3);
+                if (alien.elite === 'SPLITTER') {
+                    for (let s = -1; s <= 1; s += 2) {
+                        aliens.push({
+                            x: alien.x + alien.width / 2 - 4,
+                            y: alien.y + alien.height,
+                            width: 8, height: 8,
+                            color: '#f80',
+                            points: 5,
+                            alive: true,
+                            special: false,
+                            type: 'NORMAL',
+                            hp: 1, maxHp: 1,
+                            zigzag: false,
+                            zigzagPhase: 0,
+                            hitFlash: 0,
+                            diving: false,
+                            diveSpeed: 0,
+                            telegraphTimer: 0,
+                            telegraphType: null,
+                            elite: null,
+                            shieldHp: 0
+                        });
+                    }
+                }
+                if (alien.elite === 'CARRIER') {
+                    if (Math.random() < 0.5) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
+                    else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                } else if (alien.special) {
+                    if (Math.random() < 0.25) spawnWeapon(alien.x + alien.width / 2, alien.y + alien.height);
+                    else spawnPowerUp(alien.x + alien.width / 2, alien.y + alien.height);
+                }
+                const ftText = mult > 1 ? `+${pts} ×${mult}` : `+${pts}`;
+                spawnFloatingText(alien.x + alien.width / 2, alien.y, ftText, alien.special ? '#fff' : alien.color);
+                updateUI();
+            }
+        }
+    }
+    // Splash damage to minions
+    for (let m of minions) {
+        if (!m.alive) continue;
+        const mx = m.x + m.width / 2;
+        const my = m.y + m.height / 2;
+        if (Math.hypot(mx - cx, my - cy) < radius) {
+            m.alive = false;
+            addComboKill();
+            const mult = Math.min(comboCount, COMBO_MAX);
+            const aceMult = aceActive ? 2 : 1;
+            const pts = m.points * mult * aceMult;
+            score += pts;
+            credits += pts;
+            createExplosion(m.x + m.width / 2, m.y + m.height / 2, m.color, 10);
+            audio.playExplosion();
+            triggerShake(2);
+            spawnFloatingText(m.x + m.width / 2, m.y, `+${pts}`, m.color);
+            updateUI();
+        }
+    }
 }
 
 function applyNukeSplash(cx, cy) {
@@ -2414,7 +2742,8 @@ function checkCollisions() {
         const bulletRect = { x: b.x - b.width / 2, y: b.y, width: b.width, height: b.height };
 
         // Aliens
-        const isPierce = b.type === 'PIERCE';
+        const isPierce = b.type === 'PIERCE' || b.acePierce;
+        const isSalvo = b.type === 'SALVO';
         for (let alien of aliens) {
             if (!alien.alive) continue;
             if (rectsOverlap(bulletRect, alien)) {
@@ -2438,11 +2767,16 @@ function checkCollisions() {
                     triggerShake(alien.type === 'TANK' ? 3 : 2);
                 }
                 if (isNuke) applyNukeSplash(alien.x + alien.width / 2, alien.y + alien.height / 2);
+                // Salvo splash on alien hit
+                if (isSalvo) {
+                    applySalvoSplash(alien.x + alien.width / 2, alien.y + alien.height / 2);
+                }
                 if (alien.hp <= 0) {
                     alien.alive = false;
                     addComboKill();
                     const mult = Math.min(comboCount, COMBO_MAX);
-                    const pts = alien.points * mult * (alien.diving ? 2 : 1);
+                    const aceMult = aceActive ? 2 : 1;
+                    const pts = alien.points * mult * (alien.diving ? 2 : 1) * aceMult;
                     score += pts;
                     credits += pts;
                     createExplosion(alien.x + alien.width / 2, alien.y + alien.height / 2, alien.special ? '#fff' : alien.color, alien.special ? 30 : 20);
@@ -2497,6 +2831,7 @@ function checkCollisions() {
             if (rectsOverlap(bulletRect, ufoRect)) {
                 if (!isPierce) bullets.splice(i, 1);
                 if (b.type === 'NUKE') applyNukeSplash(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
+                if (isSalvo) applySalvoSplash(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2);
                 score += ufo.points;
                 credits += ufo.points;
                 createExplosion(ufo.x + ufo.width / 2, ufo.y + ufo.height / 2, '#f0f', 22);
@@ -2518,9 +2853,11 @@ function checkCollisions() {
                 if (!isPierce) bullets.splice(i, 1);
                 m.alive = false;
                 if (b.type === 'NUKE') applyNukeSplash(m.x + m.width / 2, m.y + m.height / 2);
+                if (isSalvo) applySalvoSplash(m.x + m.width / 2, m.y + m.height / 2);
                 addComboKill();
                 const mult = Math.min(comboCount, COMBO_MAX);
-                const pts = m.points * mult;
+                const aceMult = aceActive ? 2 : 1;
+                const pts = m.points * mult * aceMult;
                 score += pts;
                 credits += pts;
                 createExplosion(m.x + m.width / 2, m.y + m.height / 2, m.color, 10);
@@ -2543,6 +2880,7 @@ function checkCollisions() {
                 checkBossRage();
                 const nukeHit = b.type === 'NUKE';
                 if (nukeHit) applyNukeSplash(boss.x + boss.width / 2, boss.y + boss.height / 2);
+                if (isSalvo) applySalvoSplash(boss.x + boss.width / 2, boss.y + boss.height / 2);
                 createExplosion(b.x, b.y, '#f80', 8);
                 triggerShake(3);
                 if (boss && boss.hp <= 0) {
@@ -2608,6 +2946,8 @@ function checkCollisions() {
                 audio.playHitShield();
                 updatePowerUpUI();
             } else {
+                aceStreak = 0;
+                lastDamageTime = 0;
                 lives--;
                 const isFinal = lives <= 0;
                 createExplosion(player.x + player.width / 2, player.y + player.height / 2, isFinal ? '#ff0' : '#0f0', isFinal ? 45 : 25);
@@ -2968,6 +3308,7 @@ function startGame() {
     createBunkers();
     updateUI();
     updatePowerUpUI();
+    updatePassiveHUD();
 
     startScreen.classList.add('hidden');
     shipSelectScreen.classList.add('hidden');
@@ -3093,11 +3434,13 @@ function renderShipSelect() {
     const bonusText = [];
     if (sel.bunkerBonus) bonusText.push('+🛡️row');
     if (sel.startPowerUp) bonusText.push('🎁' + sel.startPowerUp.replace('_', ' '));
+    const passiveHtml = sel.passive ? `<div style="margin-top:6px;color:${sel.color};font-size:13px"><strong>${sel.passive.icon} ${sel.passive.name}</strong> — ${sel.passive.desc}</div>` : '';
     stats.innerHTML = `
         <strong style="color:${sel.color}">${sel.icon} ${sel.name}</strong>
         &nbsp;|&nbsp; ❤️${sel.lives} ⚡${(sel.speedMult * 100).toFixed(0)}% 🔫${(sel.fireRateMult * 100).toFixed(0)}%
         ${bonusText.length ? '&nbsp;|&nbsp; ' + bonusText.join(' ') : ''}
         &nbsp;|&nbsp; <span style="color:#888">Best:${best}</span>
+        ${passiveHtml}
     `;
 }
 
@@ -3263,6 +3606,7 @@ function gameLoop(timestamp) {
     updateFloatingTexts(dt);
     checkCollisions();
     updatePowerUpUI();
+    updatePassiveHUD();
 
     applyShake();
 
