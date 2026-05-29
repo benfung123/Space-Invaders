@@ -594,8 +594,9 @@ function setupTouchBtn(btn, key) {
                 lastKeyTapTime[key === 'left' ? 'right' : 'left'] = 0;
             }
         }
-    });
+    }, { passive: false });
     btn.addEventListener('touchend', (e) => { e.preventDefault(); touchInput[key] = false; });
+    btn.addEventListener('touchcancel', (e) => { touchInput[key] = false; });
     btn.addEventListener('mousedown', (e) => { touchInput[key] = true; });
     btn.addEventListener('mouseup', (e) => { touchInput[key] = false; });
     btn.addEventListener('mouseleave', (e) => { touchInput[key] = false; });
@@ -1028,8 +1029,8 @@ function getBossType(level) {
 }
 
 function getBossHp(level, type) {
-    const base = 5 + (level - 3) * 3;
-    const mult = type === 'DESTROYER' ? 1.5 : type === 'CARRIER' ? 0.7 : 1.0;
+    const base = 25 + (level - 3) * 10;
+    const mult = type === 'DESTROYER' ? 2.2 : type === 'CARRIER' ? 1.4 : 1.7;
     return Math.floor(base * mult);
 }
 
@@ -3253,6 +3254,31 @@ window.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// Reset stuck keys / touch when window loses focus
+window.addEventListener('blur', () => {
+    for (let k in keys) keys[k] = false;
+    touchInput.left = false;
+    touchInput.right = false;
+    touchInput.fire = false;
+});
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        for (let k in keys) keys[k] = false;
+        touchInput.left = false;
+        touchInput.right = false;
+        touchInput.fire = false;
+    }
+});
+
+// iOS Safari: resume AudioContext on first user interaction
+function resumeAudioContext() {
+    if (audio.ctx && audio.ctx.state === 'suspended') {
+        audio.ctx.resume().catch(() => {});
+    }
+}
+window.addEventListener('pointerdown', resumeAudioContext, { once: true });
+window.addEventListener('touchstart', resumeAudioContext, { once: true });
 
 function startGame() {
     const ship = SHIP_CLASSES[selectedShipKey];

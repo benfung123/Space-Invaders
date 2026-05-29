@@ -257,6 +257,14 @@ canvas {
 @media (max-width: 768px) {
     .controls {
         display: flex;
+        gap: 24px;
+        margin-top: 14px;
+    }
+    .control-btn {
+        width: 96px;
+        height: 72px;
+        font-size: 28px;
+        border-radius: 14px;
     }
     canvas {
         border-width: 1px;
