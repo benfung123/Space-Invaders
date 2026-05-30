@@ -1,9 +1,20 @@
 import { state } from './state.js';
-import { leftBtn, rightBtn, fireBtn, canvas } from './dom.js';
+import { leftBtn, rightBtn, fireBtn, mobileControls, canvas } from './dom.js';
 import { audio } from './audio.js';
 import { createExplosion } from './entities/particle.js';
 
+function isTouchDevice() {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 export function initInput(player) {
+    if (isTouchDevice() && mobileControls) {
+        mobileControls.style.display = 'flex';
+        const desktopHint = document.getElementById('desktopHint');
+        const touchHint = document.getElementById('touchHint');
+        if (desktopHint) desktopHint.classList.add('hidden');
+        if (touchHint) touchHint.classList.remove('hidden');
+    }
     window.addEventListener('keydown', (e) => {
         state.keys[e.key] = true;
         if (e.key === ' ' && state.gameState === 'playing') {

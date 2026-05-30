@@ -33,3 +33,4 @@ export const entryScore = document.getElementById('entryScore');
 export const leftBtn = document.getElementById('leftBtn');
 export const rightBtn = document.getElementById('rightBtn');
 export const fireBtn = document.getElementById('fireBtn');
+export const mobileControls = document.getElementById('mobileControls');
