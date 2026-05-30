@@ -4,6 +4,7 @@ export const canvas = document.getElementById('gameCanvas');
 export const nameEntryScreen = document.getElementById('nameEntryScreen');
 export const leaderboardScreen = document.getElementById('leaderboardScreen');
 export const nameInput = document.getElementById('nameInput');
+export const lbTable = document.getElementById('lbTable');
 
 export const pauseScreen = document.getElementById('pauseScreen');
 export const pauseBtn = document.getElementById('pauseBtn');
