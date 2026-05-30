@@ -5,20 +5,32 @@
  */
 export const storage = {
     get(key) {
-        return localStorage.getItem(key);
+        try {
+            return localStorage.getItem(key);
+        } catch {
+            return null;
+        }
     },
     set(key, value) {
-        localStorage.setItem(key, value);
+        try {
+            localStorage.setItem(key, value);
+        } catch {
+            /* silently fail on WebView storage errors */
+        }
     },
     getJson(key) {
-        const v = localStorage.getItem(key);
         try {
+            const v = localStorage.getItem(key);
             return v ? JSON.parse(v) : null;
         } catch {
             return null;
         }
     },
     setJson(key, value) {
-        localStorage.setItem(key, JSON.stringify(value));
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch {
+            /* silently fail on WebView storage errors */
+        }
     }
 };

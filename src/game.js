@@ -194,6 +194,7 @@ export function nextLevel() {
 
 export function endGame() {
     state.gameState = 'gameover';
+    try {
     const prevBest = state.highScore;
     if (state.score > state.highScore) {
         state.highScore = state.score;
@@ -257,6 +258,10 @@ export function endGame() {
         entryScore.textContent = state.score;
         nameInput.value = 'AAA';
         // Don't show name entry immediately; let player choose loop option first
+    }
+    } catch (e) {
+        console.error('endGame error:', e);
+        gameOverScreen.classList.remove('hidden');
     }
 }
 
