@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Gravity Horizon</title>
+  <script type="module" crossorigin src="/assets/index-DHhXkNDG.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-_2VmFFiH.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="ui">
+            <div class="ui-left">
+                <div class="score">Score: <span id="score">0</span></div>
+                <div class="credits">$<span id="credits">0</span></div>
+            </div>
+            <div class="ui-center">
+                <div class="level">LEVEL <span id="level">1</span></div>
+            </div>
+            <div class="ui-right">
+                <div class="combo" id="comboBox">Combo: ×<span id="combo">0</span></div>
+                <div class="high-score">High: <span id="highScore">0</span></div>
+                <button id="muteBtn" class="mute-btn">🔊</button>
+            </div>
+        </div>
+        <div class="canvas-wrap">
+            <div class="powerups-canvas" id="powerupBar"></div>
+            <div class="passive-hud" id="passiveHud"></div>
+            <button id="shopBtn" class="shop-btn">🛒</button>
+            <button id="pauseBtn" class="pause-btn">⏸</button>
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        <div class="controls" id="mobileControls">
+            <button id="leftBtn" class="control-btn">◀</button>
+            <button id="fireBtn" class="control-btn">🔥</button>
+            <button id="rightBtn" class="control-btn">▶</button>
+        </div>
+        <div class="overlay" id="startScreen">
+            <h1>GRAVITY HORIZON</h1>
+            <p>Use ← → to move, SPACE to shoot, P to pause</p>
+            <p class="small">Collect power-ups: 🛡️ Shield | ⚡ Rapid | 🔱 Multi</p>
+            <div class="theme-swatches" id="themeSwatches"></div>
+            <p id="loopRecord" class="loop-record hidden"></p>
+            <button id="startBtn">START GAME</button>
+            <button id="lbBtnStart">🏆 LEADERBOARD</button>
+        </div>
+        <div class="overlay hidden" id="shipSelectScreen">
+            <h1>SELECT SHIP</h1>
+            <div class="ship-grid" id="shipGrid"></div>
+            <div class="ship-stats" id="shipStats"></div>
+            <button id="launchBtn">LAUNCH</button>
+            <button id="shipBackBtn">BACK</button>
+        </div>
+        <div class="overlay hidden" id="gameOverScreen">
+            <h1>GAME OVER</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <p class="high">High Score: <span id="finalHighScore">0</span></p>
+            <div id="unlockNotice" class="unlock-notice hidden"></div>
+            <div id="loopOptions" class="loop-options hidden">
+                <button id="loopContinueBtn" class="loop-btn">🔁 CONTINUE LOOP</button>
+                <button id="loopResetBtn" class="loop-btn secondary">🔄 RESET TO LOOP 1</button>
+            </div>
+            <button id="restartBtn">PLAY AGAIN</button>
+        </div>
+        <div class="overlay hidden" id="levelUpScreen">
+            <h1>LEVEL <span id="levelUpNum">2</span></h1>
+            <p>Get ready...</p>
+        </div>
+        <div class="overlay hidden" id="pauseScreen">
+            <h1>PAUSED</h1>
+            <button id="resumeBtn">RESUME</button>
+            <button id="pauseShopBtn">🛒 SHOP</button>
+            <button id="quitBtn">QUIT TO MENU</button>
+        </div>
+        <div class="overlay hidden" id="shopScreen">
+            <h1>SUPPLY DROP</h1>
+            <p class="credits">Credits: <span id="shopScore">0</span></p>
+            <div class="shop-grid" id="shopGrid"></div>
+            <button id="shopContinueBtn">CONTINUE</button>
+        </div>
+        <div class="overlay hidden" id="nameEntryScreen">
+            <h1>TOP 5!</h1>
+            <p class="entry-rank">Rank #<span id="entryRank">1</span></p>
+            <p class="entry-score">Score: <span id="entryScore">0</span></p>
+            <input type="text" id="nameInput" maxlength="3" placeholder="AAA" value="AAA">
+            <button id="nameSubmitBtn">SUBMIT</button>
+        </div>
+        <div class="overlay hidden" id="leaderboardScreen">
+            <h1>🏆 LEADERBOARD</h1>
+            <div class="lb-table" id="lbTable"></div>
+            <button id="lbPlayBtn">PLAY AGAIN</button>
+            <button id="lbMenuBtn">MAIN MENU</button>
+        </div>
+    </div>
+</body>
+</html>
