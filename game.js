@@ -1,6 +1,41 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+// ===== SPRITES =====
+const SPRITES = {
+    ship_interceptor: new Image(), ship_vanguard: new Image(),
+    ship_spectre: new Image(), ship_titan: new Image(),
+    ship_harbinger: new Image(),
+    alien_normal: new Image(), alien_fast: new Image(), alien_tank: new Image(),
+    boss_destroyer: new Image(), boss_carrier: new Image(), boss_artillery: new Image(),
+    minion: new Image(), ufo: new Image()
+};
+function loadSprites() {
+    for (const key in SPRITES) {
+        SPRITES[key].src = 'assets/sprites/' + key + '.png';
+    }
+}
+loadSprites();
+
+function drawSprite(img, x, y, w, h) {
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+    const sx = x + (w - img.width) / 2;
+    const sy = y + (h - img.height) / 2;
+    ctx.drawImage(img, sx, sy);
+}
+
+function getShipSprite() {
+    return SPRITES['ship_' + selectedShipKey.toLowerCase()] || SPRITES.ship_interceptor;
+}
+
+function getAlienSprite(type) {
+    return SPRITES['alien_' + type.toLowerCase()] || SPRITES.alien_normal;
+}
+
+function getBossSprite(type) {
+    return SPRITES['boss_' + type.toLowerCase()] || SPRITES.boss_destroyer;
+}
+
 // ===== SHIP CLASSES =====
 const SHIP_CLASSES = {
     INTERCEPTOR: {
@@ -1005,17 +1040,21 @@ function updateUfo(dt) {
 function drawUfo() {
     if (!ufo) return;
     const x = ufo.x, y = ufo.y, w = ufo.width, h = ufo.height;
-    ctx.fillStyle = '#f0f';
-    ctx.shadowColor = '#f0f';
-    ctx.shadowBlur = 14;
-    ctx.beginPath();
-    ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.ellipse(x + w / 2, y + h / 3, w / 5, h / 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    if (SPRITES.ufo && SPRITES.ufo.complete && SPRITES.ufo.naturalWidth > 0) {
+        drawSprite(SPRITES.ufo, x, y, w, h);
+    } else {
+        ctx.fillStyle = '#f0f';
+        ctx.shadowColor = '#f0f';
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.ellipse(x + w / 2, y + h / 3, w / 5, h / 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
 }
 
 // ===== BOSS SYSTEM =====
@@ -1152,16 +1191,20 @@ function drawMinions() {
     const minionColor = themeColor('minion');
     minions.forEach(m => {
         if (!m.alive) return;
-        ctx.fillStyle = minionColor;
-        ctx.shadowColor = minionColor;
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.moveTo(m.x + m.width / 2, m.y + m.height);
-        ctx.lineTo(m.x + m.width, m.y);
-        ctx.lineTo(m.x, m.y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        if (SPRITES.minion && SPRITES.minion.complete && SPRITES.minion.naturalWidth > 0) {
+            drawSprite(SPRITES.minion, m.x, m.y, m.width, m.height);
+        } else {
+            ctx.fillStyle = minionColor;
+            ctx.shadowColor = minionColor;
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.moveTo(m.x + m.width / 2, m.y + m.height);
+            ctx.lineTo(m.x + m.width, m.y);
+            ctx.lineTo(m.x, m.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
     });
 }
 
@@ -1242,23 +1285,28 @@ function updateBoss_DESTROYER(dt) {
 
 function drawBoss_DESTROYER() {
     const x = boss.x, y = boss.y, w = boss.width, h = boss.height;
-    ctx.fillStyle = '#f00';
-    ctx.shadowColor = '#f80';
-    ctx.shadowBlur = 20;
-    ctx.fillRect(x + w * 0.1, y + h * 0.25, w * 0.8, h * 0.45);
-    ctx.beginPath();
-    ctx.arc(x + w / 2, y + h * 0.25, w * 0.38, Math.PI, 0);
-    ctx.fill();
-    ctx.fillStyle = '#ff0';
-    ctx.fillRect(x + w * 0.22, y + h * 0.35, w * 0.14, h * 0.12);
-    ctx.fillRect(x + w * 0.64, y + h * 0.35, w * 0.14, h * 0.12);
-    ctx.fillStyle = '#f80';
-    ctx.fillRect(x, y + h * 0.55, w * 0.12, h * 0.3);
-    ctx.fillRect(x + w * 0.88, y + h * 0.55, w * 0.12, h * 0.3);
-    ctx.fillStyle = '#f00';
-    ctx.fillRect(x + w * 0.42, y + h * 0.68, w * 0.16, h * 0.15);
+    const sprite = getBossSprite('DESTROYER');
+    if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        drawSprite(sprite, x, y, w, h);
+    } else {
+        ctx.fillStyle = '#f00';
+        ctx.shadowColor = '#f80';
+        ctx.shadowBlur = 20;
+        ctx.fillRect(x + w * 0.1, y + h * 0.25, w * 0.8, h * 0.45);
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h * 0.25, w * 0.38, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = '#ff0';
+        ctx.fillRect(x + w * 0.22, y + h * 0.35, w * 0.14, h * 0.12);
+        ctx.fillRect(x + w * 0.64, y + h * 0.35, w * 0.14, h * 0.12);
+        ctx.fillStyle = '#f80';
+        ctx.fillRect(x, y + h * 0.55, w * 0.12, h * 0.3);
+        ctx.fillRect(x + w * 0.88, y + h * 0.55, w * 0.12, h * 0.3);
+        ctx.fillStyle = '#f00';
+        ctx.fillRect(x + w * 0.42, y + h * 0.68, w * 0.16, h * 0.15);
+        ctx.shadowBlur = 0;
+    }
     drawBossRageOverlay(x, y, w, h);
-    ctx.shadowBlur = 0;
 
     // Cannon telegraph
     if (boss.cannonTelegraph > 0 && boss.phase === 'MOVE') {
@@ -1314,24 +1362,29 @@ function updateBoss_CARRIER(dt) {
 
 function drawBoss_CARRIER() {
     const x = boss.x, y = boss.y, w = boss.width, h = boss.height;
-    ctx.fillStyle = '#0a0';
-    ctx.shadowColor = '#0f0';
-    ctx.shadowBlur = 18;
-    ctx.fillRect(x + w * 0.05, y + h * 0.3, w * 0.9, h * 0.5);
-    ctx.beginPath();
-    ctx.arc(x + w / 2, y + h * 0.35, w * 0.42, Math.PI, 0);
-    ctx.fill();
-    ctx.fillStyle = '#030';
-    ctx.fillRect(x + w * 0.15, y + h * 0.5, w * 0.18, h * 0.3);
-    ctx.fillRect(x + w * 0.67, y + h * 0.5, w * 0.18, h * 0.3);
-    ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
-    ctx.fillRect(x + w * 0.17, y + h * 0.55, w * 0.14, h * 0.2);
-    ctx.fillRect(x + w * 0.69, y + h * 0.55, w * 0.14, h * 0.2);
-    ctx.fillStyle = '#0f0';
-    ctx.fillRect(x + w * 0.35, y + h * 0.82, w * 0.08, h * 0.12);
-    ctx.fillRect(x + w * 0.57, y + h * 0.82, w * 0.08, h * 0.12);
+    const sprite = getBossSprite('CARRIER');
+    if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        drawSprite(sprite, x, y, w, h);
+    } else {
+        ctx.fillStyle = '#0a0';
+        ctx.shadowColor = '#0f0';
+        ctx.shadowBlur = 18;
+        ctx.fillRect(x + w * 0.05, y + h * 0.3, w * 0.9, h * 0.5);
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h * 0.35, w * 0.42, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = '#030';
+        ctx.fillRect(x + w * 0.15, y + h * 0.5, w * 0.18, h * 0.3);
+        ctx.fillRect(x + w * 0.67, y + h * 0.5, w * 0.18, h * 0.3);
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
+        ctx.fillRect(x + w * 0.17, y + h * 0.55, w * 0.14, h * 0.2);
+        ctx.fillRect(x + w * 0.69, y + h * 0.55, w * 0.14, h * 0.2);
+        ctx.fillStyle = '#0f0';
+        ctx.fillRect(x + w * 0.35, y + h * 0.82, w * 0.08, h * 0.12);
+        ctx.fillRect(x + w * 0.57, y + h * 0.82, w * 0.08, h * 0.12);
+        ctx.shadowBlur = 0;
+    }
     drawBossRageOverlay(x, y, w, h);
-    ctx.shadowBlur = 0;
 }
 
 // ===== ARTILLERY =====
@@ -1390,29 +1443,34 @@ function updateBoss_ARTILLERY(dt) {
 
 function drawBoss_ARTILLERY() {
     const x = boss.x, y = boss.y, w = boss.width, h = boss.height;
-    ctx.fillStyle = '#80a';
-    ctx.shadowColor = '#f0f';
-    ctx.shadowBlur = 18;
-    ctx.beginPath();
-    ctx.arc(x + w / 2, y + h * 0.6, w * 0.45, 0, Math.PI, 0);
-    ctx.fill();
-    ctx.fillRect(x + w * 0.2, y + h * 0.15, w * 0.6, h * 0.45);
-    ctx.fillStyle = '#f0f';
-    const turretW = w * 0.1;
-    const turretH = h * 0.25;
-    const turretY = y + h * 0.05;
-    ctx.fillRect(x + w * 0.25, turretY, turretW, turretH);
-    ctx.fillRect(x + w * 0.65, turretY, turretW, turretH);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(x + w / 2, y + h * 0.35, w * 0.08, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#f0f';
-    ctx.beginPath();
-    ctx.arc(x + w / 2, y + h * 0.35, w * 0.04, 0, Math.PI * 2);
-    ctx.fill();
+    const sprite = getBossSprite('ARTILLERY');
+    if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        drawSprite(sprite, x, y, w, h);
+    } else {
+        ctx.fillStyle = '#80a';
+        ctx.shadowColor = '#f0f';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h * 0.6, w * 0.45, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.fillRect(x + w * 0.2, y + h * 0.15, w * 0.6, h * 0.45);
+        ctx.fillStyle = '#f0f';
+        const turretW = w * 0.1;
+        const turretH = h * 0.25;
+        const turretY = y + h * 0.05;
+        ctx.fillRect(x + w * 0.25, turretY, turretW, turretH);
+        ctx.fillRect(x + w * 0.65, turretY, turretW, turretH);
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h * 0.35, w * 0.08, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#f0f';
+        ctx.beginPath();
+        ctx.arc(x + w / 2, y + h * 0.35, w * 0.04, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
     drawBossRageOverlay(x, y, w, h);
-    ctx.shadowBlur = 0;
 
     // Aim telegraph reticle
     if (boss.aimTelegraph > 0) {
@@ -1613,18 +1671,24 @@ const player = {
             ctx.shadowBlur = 0;
         }
 
-        ctx.fillStyle = this.color;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.moveTo(this.x + this.width / 2, this.y);
-        ctx.lineTo(this.x + this.width, this.y + this.height);
-        ctx.lineTo(this.x, this.y + this.height);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = themeColor('bullet');
-        ctx.fillRect(this.x + this.width / 2 - 3, this.y + this.height, 6, 6);
-        ctx.shadowBlur = 0;
+        const sprite = getShipSprite();
+        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+            drawSprite(sprite, this.x, this.y, this.width, this.height);
+        } else {
+            // Fallback procedural shape
+            ctx.fillStyle = this.color;
+            ctx.shadowColor = this.color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.moveTo(this.x + this.width / 2, this.y);
+            ctx.lineTo(this.x + this.width, this.y + this.height);
+            ctx.lineTo(this.x, this.y + this.height);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = themeColor('bullet');
+            ctx.fillRect(this.x + this.width / 2 - 3, this.y + this.height, 6, 6);
+            ctx.shadowBlur = 0;
+        }
     }
 };
 
@@ -2254,44 +2318,63 @@ function drawAliens() {
 
         const x = a.x, y = a.y, w = a.width, h = a.height;
 
-        // Fast aliens: slimmer body
-        if (a.type === 'FAST') {
-            ctx.fillRect(x + w * 0.3, y, w * 0.4, h * 0.35);
-            ctx.fillRect(x + w * 0.15, y + h * 0.35, w * 0.7, h * 0.45);
-            ctx.fillRect(x + w * 0.25, y + h * 0.8, w * 0.15, h * 0.2);
-            ctx.fillRect(x + w * 0.6, y + h * 0.8, w * 0.15, h * 0.2);
-            // Speed lines
-            ctx.fillStyle = 'rgba(255,255,255,0.3)';
-            ctx.fillRect(x + w * 0.4, y - 3, w * 0.2, 2);
-        }
-        // Tank aliens: thicker armor frame
-        else if (a.type === 'TANK') {
-            ctx.fillRect(x + w * 0.15, y, w * 0.7, h * 0.35);
-            ctx.fillRect(x, y + h * 0.3, w, h * 0.55);
-            ctx.fillRect(x + w * 0.1, y + h * 0.85, w * 0.25, h * 0.15);
-            ctx.fillRect(x + w * 0.65, y + h * 0.85, w * 0.25, h * 0.15);
-            // Armor plate
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-            // HP dots
-            const dotColor = a.hp === a.maxHp ? '#0f0' : a.hp === 2 ? '#ff0' : '#f00';
-            ctx.fillStyle = dotColor;
-            for (let d = 0; d < a.hp; d++) {
-                ctx.fillRect(x + 4 + d * 6, y - 5, 4, 3);
-            }
-        }
-        // Mini-grunts (from splitter elites)
-        else if (w <= 10) {
+        // Mini-grunts (from splitter elites) — no sprite, keep procedural
+        if (w <= 10) {
+            ctx.fillStyle = a.color;
             ctx.fillRect(x, y, w, h * 0.6);
             ctx.fillRect(x + w * 0.2, y + h * 0.6, w * 0.6, h * 0.4);
-        }
-        // Normal aliens
-        else {
-            ctx.fillRect(x + w * 0.2, y, w * 0.6, h * 0.3);
-            ctx.fillRect(x, y + h * 0.3, w, h * 0.5);
-            ctx.fillRect(x + w * 0.15, y + h * 0.8, w * 0.2, h * 0.2);
-            ctx.fillRect(x + w * 0.65, y + h * 0.8, w * 0.2, h * 0.2);
+        } else {
+            const sprite = getAlienSprite(a.type);
+            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+                drawSprite(sprite, x, y, w, h);
+                ctx.shadowBlur = 0;
+            } else {
+                // Fallback procedural shapes
+                ctx.fillStyle = a.color;
+                ctx.shadowColor = a.special ? '#fff' : a.color;
+                ctx.shadowBlur = a.special ? pulse : 8;
+                if (a.type === 'FAST') {
+                    ctx.fillRect(x + w * 0.3, y, w * 0.4, h * 0.35);
+                    ctx.fillRect(x + w * 0.15, y + h * 0.35, w * 0.7, h * 0.45);
+                    ctx.fillRect(x + w * 0.25, y + h * 0.8, w * 0.15, h * 0.2);
+                    ctx.fillRect(x + w * 0.6, y + h * 0.8, w * 0.15, h * 0.2);
+                } else if (a.type === 'TANK') {
+                    ctx.fillRect(x + w * 0.15, y, w * 0.7, h * 0.35);
+                    ctx.fillRect(x, y + h * 0.3, w, h * 0.55);
+                    ctx.fillRect(x + w * 0.1, y + h * 0.85, w * 0.25, h * 0.15);
+                    ctx.fillRect(x + w * 0.65, y + h * 0.85, w * 0.25, h * 0.15);
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+                } else {
+                    ctx.fillRect(x + w * 0.2, y, w * 0.6, h * 0.3);
+                    ctx.fillRect(x, y + h * 0.3, w, h * 0.5);
+                    ctx.fillRect(x + w * 0.15, y + h * 0.8, w * 0.2, h * 0.2);
+                    ctx.fillRect(x + w * 0.65, y + h * 0.8, w * 0.2, h * 0.2);
+                }
+                ctx.shadowBlur = 0;
+            }
+
+            // Hit flash white overlay
+            if (a.hitFlash > 0) {
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.fillRect(x, y, w, h);
+            }
+
+            // Tank HP dots (drawn above sprite)
+            if (a.type === 'TANK') {
+                const dotColor = a.hp === a.maxHp ? '#0f0' : a.hp === 2 ? '#ff0' : '#f00';
+                ctx.fillStyle = dotColor;
+                for (let d = 0; d < a.hp; d++) {
+                    ctx.fillRect(x + 4 + d * 6, y - 5, 4, 3);
+                }
+            }
+
+            // Speed lines for fast aliens
+            if (a.type === 'FAST') {
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(x + w * 0.4, y - 3, w * 0.2, 2);
+            }
         }
 
         // Parachute for reinforcements
