@@ -2,6 +2,7 @@ import { canvas, ctx, getBossSprite, drawSprite, triggerShake } from '../rendere
 import { audio } from '../audio.js';
 import { state } from '../state.js';
 import { createExplosion, spawnFloatingText } from './particle.js';
+import { updatePowerUpUI } from './powerup.js';
 import { player, playerInvincible, respawnPlayer } from './player.js';
 import { spawnMinion } from './minion.js';
 import { updateUI } from '../systems/screens.js';

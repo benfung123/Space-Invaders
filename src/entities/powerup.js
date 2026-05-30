@@ -4,6 +4,7 @@ import { POWERUP_TYPES, WEAPON_TYPES } from '../config.js';
 import { audio } from '../audio.js';
 import { spawnFloatingText } from './particle.js';
 import { SHIP_CLASSES } from '../config.js';
+import { player } from './player.js';
 
 export function spawnPowerUp(x, y) {
     const types = Object.keys(POWERUP_TYPES);
@@ -121,7 +122,7 @@ export function updatePassiveHUD() {
     if (state.selectedShipKey === 'VANGUARD') {
         const tag = document.createElement('div');
         tag.className = 'passive-tag';
-        if (state.player.shield) {
+        if (player.shield) {
             tag.style.borderColor = '#08f';
             tag.style.color = '#08f';
             tag.textContent = '🛡️ ACTIVE';
@@ -200,7 +201,7 @@ export function applyWeapon(type) {
     state.activeWeapon = type;
     state.weaponTimer = WEAPON_TYPES[type].duration;
     audio.playPowerUp();
-    spawnFloatingText(state.player.x + state.player.width / 2, state.player.y - 20, WEAPON_TYPES[type].label, WEAPON_TYPES[type].color);
+    spawnFloatingText(player.x + player.width / 2, player.y - 20, WEAPON_TYPES[type].label, WEAPON_TYPES[type].color);
     updatePowerUpUI();
 }
 
@@ -228,11 +229,11 @@ export function updateWingmen(dt) {
     
     state.wingmen.forEach(w => {
         if (w.side === 'left') {
-            w.x = state.player.x - w.width - 10;
+            w.x = player.x - w.width - 10;
         } else {
-            w.x = state.player.x + state.player.width + 10;
+            w.x = player.x + player.width + 10;
         }
-        w.y = state.player.y + (state.player.height - w.height) / 2;
+        w.y = player.y + (player.height - w.height) / 2;
         
         w.cooldown -= dt;
         if (w.cooldown <= 0) {

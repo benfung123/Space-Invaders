@@ -6,6 +6,7 @@ import { applyTheme, themeColor } from '../renderer.js';
 import { audio } from '../audio.js';
 import { showShipSelect as showShipSelectFn, renderShipSelect as renderShipSelectFn } from './shipSelect.js';
 import { renderShop, openShop, closeShop } from './shop.js';
+import { renderMenuBackground } from '../game.js';
 import { renderLeaderboard } from './leaderboard.js';
 import { updatePowerUpUI, updatePassiveHUD } from '../entities/powerup.js';
 import { getUnlockedShips, checkNewUnlocks } from '../state.js';
@@ -175,7 +176,8 @@ export function initScreens() {
     document.getElementById('loopContinueBtn').addEventListener('click', () => {
         state.loopCount++;
         state.carriedUpgrades = { ...state.upgrades };
-        // startGame called from game.js
+        gameOverScreen.classList.add('hidden');
+        startGameFn();
     });
 
     document.getElementById('loopResetBtn').addEventListener('click', () => {

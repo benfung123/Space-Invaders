@@ -1,6 +1,6 @@
 import { state, saveShipProgress, checkNewUnlocks } from './state.js';
 import { storage } from './storage.js';
-import { ctx, updateStars, drawStars, applyShake, decayShake, themeColor } from './renderer.js';
+import { ctx, updateStars, drawStars, themeColor } from './renderer.js';
 import { canvas } from './dom.js';
 import { audio } from './audio.js';
 import { player } from './entities/player.js';
@@ -294,28 +294,40 @@ export function gameLoop(timestamp) {
         updatePowerUpUI();
         updatePassiveHUD();
 
-        applyShake();
-
-        drawStars();
-        drawLives();
-        drawUfo();
-        drawAliens();
-        drawBunkers();
-        drawBombs();
-        drawMinions();
-        player.draw();
-        drawWingmen();
-        drawBullets();
-        drawPowerUps();
-        drawWeapons();
-        drawParticles();
-        drawMeteors();
-        drawEmpOverlay();
-        drawSingularities();
-        drawFloatingTexts();
-        drawShipStatus();
-
-        decayShake();
+        const shouldShake = state.screenShake > 0.3;
+        if (shouldShake) {
+            const dx = (Math.random() - 0.5) * 2 * state.screenShake;
+            const dy = (Math.random() - 0.5) * 2 * state.screenShake;
+            ctx.save();
+            ctx.translate(dx, dy);
+        }
+        try {
+            drawStars();
+            drawLives();
+            drawUfo();
+            drawAliens();
+            drawBunkers();
+            drawBombs();
+            drawMinions();
+            player.draw();
+            drawWingmen();
+            drawBullets();
+            drawPowerUps();
+            drawWeapons();
+            drawParticles();
+            drawMeteors();
+            drawEmpOverlay();
+            drawSingularities();
+            drawFloatingTexts();
+            drawShipStatus();
+        } finally {
+            if (shouldShake) {
+                state.screenShake *= 0.88;
+                ctx.restore();
+            } else {
+                state.screenShake = 0;
+            }
+        }
     } catch (e) {
         console.error('gameLoop error:', e);
     }

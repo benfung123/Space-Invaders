@@ -65,6 +65,8 @@ export function decayShake() {
     }
 }
 
+
+
 // ===== RESIZE =====
 export function resizeCanvas() {
     const aspect = GAME_WIDTH / GAME_HEIGHT;

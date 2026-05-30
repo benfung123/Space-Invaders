@@ -1,5 +1,6 @@
 import { state } from '../state.js';
 import { ctx, canvas, themeColor, drawSprite, SPRITES } from '../renderer.js';
+import { player } from './player.js';
 
 export function spawnMinion(x, y) {
     state.minions.push({
@@ -18,7 +19,7 @@ export function updateMinions(dt) {
         const m = state.minions[i];
         if (!m.alive) { state.minions.splice(i, 1); continue; }
         m.y += m.speed * dt;
-        m.x += (state.player.x - m.x) * 1.2 * dt;
+        m.x += (player.x - m.x) * 1.2 * dt;
         if (m.y > canvas.height + 20) {
             m.alive = false;
         }

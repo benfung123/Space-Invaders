@@ -3,6 +3,7 @@ import { audio } from '../audio.js';
 import { state } from '../state.js';
 import { ALIEN_TYPES, ELITE_TYPES, pickAlienType } from '../config.js';
 import { createExplosion, spawnFloatingText } from './particle.js';
+import { updatePowerUpUI } from './powerup.js';
 import { player, playerInvincible, respawnPlayer } from './player.js';
 import { updateBoss, drawBoss, spawnBoss } from './boss.js';
 import { updateUI } from '../systems/screens.js';

@@ -2,7 +2,7 @@ import { state } from '../state.js';
 import { audio } from '../audio.js';
 import { shopScreen, shopGrid, shopScoreEl, pauseScreen, pauseBtn, shopBtn } from '../dom.js';
 import { createBunkers } from '../entities/bunker.js';
-import { getFireRateCooldown } from '../entities/player.js';
+import { getFireRateCooldown, player } from '../entities/player.js';
 
 export function scaleCost(base) {
     return Math.floor(base * (1 + (state.level - 1) * 0.25));
@@ -19,7 +19,7 @@ export const SHOP_ITEMS = [
         id: 'speed', name: 'Faster Ship', desc: '+20% move speed (max Lv10)',
         getCost: () => scaleCost([400, 700, 1100, 1600, 2200, 2900, 3700, 4600, 5600, 6800][state.upgrades.speedBonus] || 9999),
         canBuy: () => state.upgrades.speedBonus < 10,
-        buy: () => { state.upgrades.speedBonus++; state.player.speed = 300 * (1 + state.upgrades.speedBonus * 0.2); }
+        buy: () => { state.upgrades.speedBonus++; player.speed = 300 * (1 + state.upgrades.speedBonus * 0.2); }
     },
     {
         id: 'bunker', name: 'Wider Bunkers', desc: '+1 brick row per bunker (max Lv10)',
@@ -37,7 +37,7 @@ export const SHOP_ITEMS = [
         id: 'fireRate', name: 'Quick Trigger', desc: 'Permanent fire rate up (max Lv10)',
         getCost: () => scaleCost([400, 750, 1200, 1700, 2300, 3000, 3800, 4700, 5700, 6800][state.upgrades.fireRateBonus] || 9999),
         canBuy: () => state.upgrades.fireRateBonus < 10,
-        buy: () => { state.upgrades.fireRateBonus++; state.player.baseCooldown = getFireRateCooldown(); }
+        buy: () => { state.upgrades.fireRateBonus++; player.baseCooldown = getFireRateCooldown(); }
     }
 ];
 

@@ -3,7 +3,8 @@ import { SHIP_CLASSES } from './config.js';
 
 // ===== PERSISTED STATE =====
 const _highScore = parseInt(storage.get('si_highScore')) || 0;
-const _shipUnlocks = storage.getJson('si_shipUnlocks') || ['INTERCEPTOR'];
+let _shipUnlocks = storage.getJson('si_shipUnlocks') || ['INTERCEPTOR'];
+if (!Array.isArray(_shipUnlocks)) _shipUnlocks = ['INTERCEPTOR'];
 const _harbingerUnlocked = storage.get('si_harbingerUnlocked') === 'true';
 if (_harbingerUnlocked && !_shipUnlocks.includes('HARBINGER')) {
     _shipUnlocks.push('HARBINGER');
@@ -20,8 +21,8 @@ export const state = {
     highestLoopReached: parseInt(storage.get('si_highestLoop')) || 0,
     loopUnlocked: storage.get('si_loopUnlocked') === 'true',
     harbingerUnlocked: _harbingerUnlocked,
-    currentTheme: storage.get('si_theme') || 'CLASSIC',
-    leaderboard: storage.getJson('si_leaderboard') || [],
+    currentTheme: THEMES[storage.get('si_theme')] ? storage.get('si_theme') : 'CLASSIC',
+    leaderboard: Array.isArray(storage.getJson('si_leaderboard')) ? storage.getJson('si_leaderboard') : [],
 
     // Game
     gameState: 'menu',
