@@ -99,11 +99,18 @@ export function showShipSelect() {
 }
 
 export function initScreens() {
-    muteBtn.addEventListener('click', () => {
+    function toggleMute() {
         const muted = audio.toggleMute();
         muteBtn.textContent = muted ? '🔇' : '🔊';
         muteBtn.classList.toggle('muted', muted);
-    });
+        const pauseMuteBtn = document.getElementById('pauseMuteBtn');
+        if (pauseMuteBtn) {
+            pauseMuteBtn.textContent = muted ? '🔇' : '🔊';
+            pauseMuteBtn.classList.toggle('muted', muted);
+        }
+    }
+    muteBtn.addEventListener('click', toggleMute);
+    document.getElementById('pauseMuteBtn')?.addEventListener('click', toggleMute);
 
     document.getElementById('startBtn').addEventListener('click', () => {
         audio.init();

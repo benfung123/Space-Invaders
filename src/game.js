@@ -268,53 +268,57 @@ export function endGame() {
 export function gameLoop(timestamp) {
     if (state.gameState !== 'playing') return;
 
-    const dt = Math.min((timestamp - state.lastTime) / 1000, 0.05);
-    state.lastTime = timestamp;
+    try {
+        const dt = Math.min((timestamp - state.lastTime) / 1000, 0.05);
+        state.lastTime = timestamp;
 
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    updateStars();
-    player.update(dt);
-    updateWingmen(dt);
-    updateBullets(dt);
-    updateSingularities(dt);
-    updateAliens(dt);
-    updateMinions(dt);
-    updateBombs(dt);
-    updateUfo(dt);
-    updatePowerUps(dt);
-    updateWeapons(dt);
-    updateWeaponTimer(dt);
-    updateParticles(dt);
-    updateCombo(dt);
-    updateFloatingTexts(dt);
-    checkCollisions();
-    updatePowerUpUI();
-    updatePassiveHUD();
+        updateStars();
+        player.update(dt);
+        updateWingmen(dt);
+        updateBullets(dt);
+        updateSingularities(dt);
+        updateAliens(dt);
+        updateMinions(dt);
+        updateBombs(dt);
+        updateUfo(dt);
+        updatePowerUps(dt);
+        updateWeapons(dt);
+        updateWeaponTimer(dt);
+        updateParticles(dt);
+        updateCombo(dt);
+        updateFloatingTexts(dt);
+        checkCollisions();
+        updatePowerUpUI();
+        updatePassiveHUD();
 
-    applyShake();
+        applyShake();
 
-    drawStars();
-    drawLives();
-    drawUfo();
-    drawAliens();
-    drawBunkers();
-    drawBombs();
-    drawMinions();
-    player.draw();
-    drawWingmen();
-    drawBullets();
-    drawPowerUps();
-    drawWeapons();
-    drawParticles();
-    drawMeteors();
-    drawEmpOverlay();
-    drawSingularities();
-    drawFloatingTexts();
-    drawShipStatus();
+        drawStars();
+        drawLives();
+        drawUfo();
+        drawAliens();
+        drawBunkers();
+        drawBombs();
+        drawMinions();
+        player.draw();
+        drawWingmen();
+        drawBullets();
+        drawPowerUps();
+        drawWeapons();
+        drawParticles();
+        drawMeteors();
+        drawEmpOverlay();
+        drawSingularities();
+        drawFloatingTexts();
+        drawShipStatus();
 
-    decayShake();
+        decayShake();
+    } catch (e) {
+        console.error('gameLoop error:', e);
+    }
 
     state.animationId = requestAnimationFrame(gameLoop);
 }
