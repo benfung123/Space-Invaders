@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { ctx, canvas, drawSprite, SPRITES } from '../renderer.js';
+import { ctx, canvas, drawSprite, SPRITES, themeColor } from '../renderer.js';
 import { POWERUP_TYPES, WEAPON_TYPES } from '../config.js';
 import { audio } from '../audio.js';
 import { spawnFloatingText } from './particle.js';
