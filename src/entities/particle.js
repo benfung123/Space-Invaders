@@ -4,7 +4,10 @@ import { audio } from '../audio.js';
 import { themeColor } from '../renderer.js';
 
 export function createExplosion(x, y, color, count = 15) {
-    for (let i = 0; i < count; i++) {
+    const MAX_PARTICLES = 250;
+    if (state.particles.length >= MAX_PARTICLES) return;
+    const toAdd = Math.min(count, MAX_PARTICLES - state.particles.length);
+    for (let i = 0; i < toAdd; i++) {
         state.particles.push({
             x: x, y: y,
             vx: (Math.random() - 0.5) * 280,
@@ -76,16 +79,9 @@ export function drawMeteors() {
     state.meteors.forEach(m => {
         if (!m.alive) return;
         ctx.fillStyle = '#888';
-        ctx.shadowColor = '#aaa';
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(m.x + m.size / 2, m.y + m.size / 2, m.size / 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        ctx.fillRect(m.x, m.y, m.size, m.size);
         ctx.fillStyle = '#666';
-        ctx.beginPath();
-        ctx.arc(m.x + m.size * 0.3, m.y + m.size * 0.35, m.size * 0.15, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(m.x + m.size * 0.2, m.y + m.size * 0.2, m.size * 0.3, m.size * 0.3);
     });
 }
 

@@ -131,12 +131,11 @@ export function updateStars() {
 }
 
 export function drawStars() {
-    state.stars.forEach(star => {
+    ctx.fillStyle = themeColor('star');
+    for (const star of state.stars) {
         ctx.globalAlpha = star.opacity;
-        ctx.fillStyle = themeColor('star');
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
-    });
+        const s = star.size;
+        ctx.fillRect(star.x - s * 0.5, star.y - s * 0.5, s, s);
+    }
     ctx.globalAlpha = 1;
 }

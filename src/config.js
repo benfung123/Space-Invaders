@@ -10,10 +10,11 @@ export const BUNKER_BRICK_H = 6;
 export const BUNKER_GAP = 2;
 
 // ===== STARFIELD =====
+const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Capacitor/i.test(navigator.userAgent);
 export const STAR_LAYERS = [
-    { count: 60, speed: 0.4, sizeMin: 0.3, sizeMax: 1.0, opacity: 0.25 },
-    { count: 35, speed: 1.0, sizeMin: 0.8, sizeMax: 1.8, opacity: 0.55 },
-    { count: 15, speed: 2.2, sizeMin: 1.5, sizeMax: 3.0, opacity: 0.9  }
+    { count: isMobile ? 30 : 60, speed: 0.4, sizeMin: 0.3, sizeMax: 1.0, opacity: 0.25 },
+    { count: isMobile ? 18 : 35, speed: 1.0, sizeMin: 0.8, sizeMax: 1.8, opacity: 0.55 },
+    { count: isMobile ? 8  : 15, speed: 2.2, sizeMin: 1.5, sizeMax: 3.0, opacity: 0.9  }
 ];
 
 // ===== SHIP CLASSES =====
