@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Gravity Horizon</string>
+    <string name="title_activity_main">Gravity Horizon</string>
+    <string name="package_name">com.gravityhorizon.game</string>
+    <string name="custom_url_scheme">com.gravityhorizon.game</string>
+</resources>
