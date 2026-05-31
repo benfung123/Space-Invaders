@@ -6,7 +6,6 @@ import { applyTheme, themeColor } from '../renderer.js';
 import { audio } from '../audio.js';
 import { showShipSelect as showShipSelectFn, renderShipSelect as renderShipSelectFn } from './shipSelect.js';
 import { renderShop, openShop, closeShop } from './shop.js';
-import { renderMenuBackground } from '../game.js';
 import { renderLeaderboard } from './leaderboard.js';
 import { updatePowerUpUI, updatePassiveHUD } from '../entities/powerup.js';
 import { getUnlockedShips, checkNewUnlocks } from '../state.js';
@@ -111,7 +110,8 @@ export function initScreens() {
         }
     }
     muteBtn.addEventListener('click', toggleMute);
-    document.getElementById('pauseMuteBtn')?.addEventListener('click', toggleMute);
+    const pauseMuteBtn = document.getElementById('pauseMuteBtn');
+    if (pauseMuteBtn) pauseMuteBtn.addEventListener('click', toggleMute);
 
     document.getElementById('startBtn').addEventListener('click', () => {
         audio.init();
@@ -170,7 +170,7 @@ export function initScreens() {
         leaderboardScreen.classList.add('hidden');
         state.gameState = 'menu';
         startScreen.classList.remove('hidden');
-        renderMenuBackground();
+        renderMenuBackgroundFn();
     });
 
     document.getElementById('loopContinueBtn').addEventListener('click', () => {
